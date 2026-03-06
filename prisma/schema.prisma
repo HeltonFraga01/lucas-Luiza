@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─── Convidados ───────────────────────────────────────────────────────────────
+
+model Guest {
+  id            Int           @id @default(autoincrement())
+  name          String
+  email         String        @unique
+  phone         String?       @unique
+  group         String?       // Ex: "Família da Noiva", "Amigos"
+  isVip         Boolean       @default(false) // Acesso a eventos restritos
+  plusOneAllowed Boolean      @default(false)
+  createdAt     DateTime      @default(now())
+
+  rsvp          Rsvp?
+  attendees     Attendee[]
+}
+
+// ─── RSVP ─────────────────────────────────────────────────────────────────────
+
+model Rsvp {
+  id            Int      @id @default(autoincrement())
+  guestId       Int      @unique
+  confirmed     Boolean
+  plusOneName   String?
+  notes         String?
+  submittedAt   DateTime @default(now())
+
+  guest         Guest    @relation(fields: [guestId], references: [id])
+}
+
+// Acompanhantes (para grupos familiares)
+model Attendee {
+  id            Int      @id @default(autoincrement())
+  guestId       Int
+  name          String
+  dietaryNeeds  String?  // Restrições alimentares
+
+  guest         Guest    @relation(fields: [guestId], references: [id])
+}
+
+// ─── Lista de Presentes ───────────────────────────────────────────────────────
+
+model GiftItem {
+  id            Int           @id @default(autoincrement())
+  title         String
+  description   String?
+  imageUrl      String?
+  externalUrl   String?       // URL da loja externa
+  price         Float
+  category      String        // "Cozinha", "Aventuras", "Casa", etc.
+  isMostWanted  Boolean       @default(false)
+  isGroupGift   Boolean       @default(false)
+  targetAmount  Float?        // Para financiamento coletivo
+  raisedAmount  Float         @default(0)
+  isPurchased   Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+
+  contributions GiftContribution[]
+}
+
+model GiftContribution {
+  id            Int       @id @default(autoincrement())
+  giftItemId    Int
+  contributorName  String
+  contributorEmail String
+  amount        Float
+  paymentMethod String    // "pix", "paypal", "manual"
+  confirmedAt   DateTime  @default(now())
+
+  giftItem      GiftItem  @relation(fields: [giftItemId], references: [id])
+}
+
+// ─── Eventos do Itinerário ────────────────────────────────────────────────────
+
+model Event {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  location    String?
+  datetime    DateTime
+  isVipOnly   Boolean  @default(false)
+  order       Int      @default(0)
+}
+
+// ─── Configurações do Site ────────────────────────────────────────────────────
+
+model SiteSettings {
+  id              Int      @id @default(1)
+  heroImage       String   @default("/hero-bg.jpg")
+  heroImages      String   @default("[\"/hero-bg.jpg\"]") // JSON string of image URLs
+  heroTitle       String   @default("Lucas & Luiza")
+  heroSubtitle    String   @default("15 de Novembro de 2026")
+  storyText       String   @default("Nossa história em detalhes...")
+  storyImage      String   @default("/story.jpg")
+  primaryColor    String   @default("#6a8cb8")
+  secondaryColor  String   @default("#eaf2fa")
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Linha do Tempo (Grandes Momentos) ────────────────────────────────────────
+
+model StoryTimeline {
+  id          Int      @id @default(autoincrement())
+  year        String   // Ex: "2018"
+  title       String   // Ex: "O Primeiro Encontro"
+  description String   // Texto do momento
+  order       Int      @default(0) // Para ordenação personalizada
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
