@@ -16,31 +16,36 @@ export async function GET() {
   }
 }
 
-export async function POST(req: Request) {
+export async function PUT(req: Request) {
   try {
     const data = await req.json();
 
+    const updateData: Record<string, unknown> = {};
+
+    // Only include fields that are present in the request
+    const allowedFields = [
+      "heroImage", "heroImages", "heroTitle", "heroSubtitle",
+      "weddingDate", "storyText", "storyImage",
+      "primaryColor", "secondaryColor",
+      "secretMessage", "pixKey", "footerText",
+      "itineraryTitle", "itinerarySubtitle",
+    ];
+
+    for (const field of allowedFields) {
+      if (data[field] !== undefined) {
+        // Special handling for weddingDate — convert string to Date
+        if (field === "weddingDate" && typeof data[field] === "string") {
+          updateData[field] = new Date(data[field]);
+        } else {
+          updateData[field] = data[field];
+        }
+      }
+    }
+
     const settings = await prisma.siteSettings.upsert({
       where: { id: 1 },
-      update: {
-        heroImage: data.heroImage,
-        heroTitle: data.heroTitle,
-        heroSubtitle: data.heroSubtitle,
-        storyText: data.storyText,
-        storyImage: data.storyImage,
-        primaryColor: data.primaryColor,
-        secondaryColor: data.secondaryColor,
-      },
-      create: {
-        id: 1,
-        heroImage: data.heroImage,
-        heroTitle: data.heroTitle,
-        heroSubtitle: data.heroSubtitle,
-        storyText: data.storyText,
-        storyImage: data.storyImage,
-        primaryColor: data.primaryColor,
-        secondaryColor: data.secondaryColor,
-      }
+      update: updateData,
+      create: { id: 1, ...updateData },
     });
 
     return NextResponse.json(settings);
@@ -48,4 +53,9 @@ export async function POST(req: Request) {
     console.error("Erro ao atualizar configurações:", error);
     return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
   }
+}
+
+// Legacy support — redirect POST to PUT logic
+export async function POST(req: Request) {
+  return PUT(req);
 }

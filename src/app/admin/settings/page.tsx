@@ -1,196 +1,431 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { toast } from "@/components/ui/Toast";
 
-export default function SettingsAdminPanel() {
-  const [settings, setSettings] = useState<any>(null);
+interface Settings {
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  heroImages: string;
+  weddingDate: string;
+  storyText: string;
+  storyImage: string;
+  primaryColor: string;
+  secondaryColor: string;
+  secretMessage: string;
+  pixKey: string;
+  footerText: string;
+  itineraryTitle: string;
+  itinerarySubtitle: string;
+}
+
+const defaultSettings: Settings = {
+  heroTitle: "",
+  heroSubtitle: "",
+  heroImage: "",
+  heroImages: "[]",
+  weddingDate: "2026-11-15T16:00",
+  storyText: "",
+  storyImage: "",
+  primaryColor: "#6B7FD4",
+  secondaryColor: "#D6E4F7",
+  secretMessage: "",
+  pixKey: "",
+  footerText: "Feito com 💙",
+  itineraryTitle: "Programação do Dia",
+  itinerarySubtitle: "Cada momento foi pensado com carinho para que todos aproveitem ao máximo este dia especial.",
+};
+
+// ═══════════════════════════════════════════════════════════════
+// Section Card Component
+// ═══════════════════════════════════════════════════════════════
+
+function SectionCard({
+  icon,
+  title,
+  description,
+  children,
+}: {
+  icon: string;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="bg-pearl rounded-xl border border-dust p-5 md:p-6 flex flex-col gap-5">
+      <div>
+        <h3 className="font-serif text-lg text-charcoal flex items-center gap-2">
+          <span>{icon}</span> {title}
+        </h3>
+        {description && (
+          <p className="text-[11px] text-stone/70 font-sans mt-1">{description}</p>
+        )}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Textarea Component
+// ═══════════════════════════════════════════════════════════════
+
+function Textarea({
+  label,
+  value,
+  onChange,
+  placeholder,
+  rows = 4,
+  hint,
+  isCode = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  rows?: number;
+  hint?: string;
+  isCode?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-sans font-medium text-stone uppercase tracking-wider">
+        {label}
+      </label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className={`w-full px-4 py-3 text-sm text-charcoal bg-parchment
+                   border-[1.5px] border-dust rounded-md placeholder:text-stone/60
+                   focus:outline-none focus:ring-2 focus:ring-periwinkle focus:border-periwinkle
+                   transition-all duration-300 resize-none
+                   ${isCode ? "font-mono text-xs" : "font-sans"}`}
+      />
+      {hint && <p className="text-[10px] text-stone/60 font-sans">{hint}</p>}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Color Picker
+// ═══════════════════════════════════════════════════════════════
+
+function ColorPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="text-xs font-sans font-medium text-stone uppercase tracking-wider">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-10 h-10 rounded-lg border border-dust cursor-pointer"
+        />
+        <span className="text-xs font-mono text-stone">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Settings Page
+// ═══════════════════════════════════════════════════════════════
+
+export default function SettingsPage() {
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [heroImagesInput, setHeroImagesInput] = useState("");
+  const [activeTab, setActiveTab] = useState<"geral" | "conteudo" | "avancado">("geral");
 
   useEffect(() => {
-    fetch("/api/admin/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        setSettings(data);
-        if (data.heroImages) {
-          try {
-             const parsed = JSON.parse(data.heroImages);
-             if (Array.isArray(parsed)) setHeroImagesInput(parsed.join('\n'));
-          } catch(e){}
+    async function load() {
+      try {
+        const res = await fetch("/api/admin/settings");
+        if (res.ok) {
+          const data = await res.json();
+          // Format weddingDate for datetime-local input
+          if (data.weddingDate) {
+            const d = new Date(data.weddingDate);
+            data.weddingDate = d.toISOString().slice(0, 16);
+          }
+          setSettings({ ...defaultSettings, ...data });
         }
+      } catch {
+        /* no-op */
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setLoading(false);
-      });
+      }
+    }
+    load();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setMessage("");
+  const update = (key: keyof Settings, value: string) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
+  const handleSave = async () => {
+    setSaving(true);
     try {
       const res = await fetch("/api/admin/settings", {
-        method: "POST",
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-
-      if (!res.ok) throw new Error("Erro ao salvar");
-      setMessage("Configurações salvas com sucesso!");
-    } catch (error) {
-      console.error(error);
-      setMessage("Erro ao salvar configurações.");
+      if (!res.ok) throw new Error();
+      toast("Configurações salvas com sucesso! ✓", "success");
+    } catch {
+      toast("Erro ao salvar configurações.", "error");
     } finally {
       setSaving(false);
-      setTimeout(() => setMessage(""), 3000);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <div className="w-8 h-8 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+      <div className="flex flex-col gap-4">
+        <div className="skeleton w-48 h-8" />
+        <div className="skeleton w-full h-12" />
+        <div className="skeleton w-full h-12" />
+        <div className="skeleton w-full h-12" />
       </div>
     );
   }
 
+  const tabs = [
+    { key: "geral" as const, label: "⚙️ Geral", desc: "Nomes, data e cores" },
+    { key: "conteudo" as const, label: "📝 Conteúdo", desc: "Textos, imagens e jogo" },
+    { key: "avancado" as const, label: "💰 PIX & Rodapé", desc: "Pagamentos e footer" },
+  ];
+
   return (
-    <div className="flex flex-col gap-8 max-w-4xl mx-auto w-full">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-serif text-zinc-900 dark:text-zinc-100">Personalização</h1>
-          <p className="text-zinc-600 dark:text-zinc-400 mt-2">Personalize textos, imagens e cores da sua página pública.</p>
-        </div>
-        <button 
-          onClick={handleSave}
-          disabled={saving}
-          className="px-6 py-3 bg-[#d4af37] text-white rounded-xl font-medium hover:bg-[#b8952b] transition-colors whitespace-nowrap disabled:opacity-50"
-        >
-          {saving ? "Salvando..." : "Salvar Alterações"}
-        </button>
+    <div className="flex flex-col gap-6 pb-24 relative">
+      {/* Header */}
+      <div>
+        <h1 className="font-serif text-2xl text-charcoal">Configurações</h1>
+        <p className="text-stone text-xs font-sans mt-0.5">
+          Personalize todos os textos, imagens e funcionalidades do site.
+        </p>
       </div>
 
-      {message && (
-        <div className={`p-4 rounded-xl ${message.includes("Erro") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
-          {message}
-        </div>
-      )}
+      {/* Tabs */}
+      <div className="flex gap-1 bg-sky-wash p-1 rounded-xl">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-3 py-2.5 text-xs font-sans font-medium rounded-lg transition-all duration-200 cursor-pointer
+              ${
+                activeTab === tab.key
+                  ? "bg-pearl text-charcoal shadow-sm"
+                  : "text-stone hover:text-charcoal hover:bg-pearl/50"
+              }`}
+          >
+            <span className="block">{tab.label}</span>
+            <span className="block text-[10px] mt-0.5 opacity-60">{tab.desc}</span>
+          </button>
+        ))}
+      </div>
 
-      <form onSubmit={handleSave} className="flex flex-col gap-6">
-        
-        {/* Seção Hero */}
-        <div className="bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
-          <h2 className="text-xl font-serif text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">Cabeçalho (Hero)</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Título (Nomes)</label>
-              <input 
-                type="text" 
-                value={settings?.heroTitle || ""}
-                onChange={(e) => setSettings({...settings, heroTitle: e.target.value})}
-                className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Subtítulo (Data)</label>
-              <input 
-                type="text" 
-                value={settings?.heroSubtitle || ""}
-                onChange={(e) => setSettings({...settings, heroSubtitle: e.target.value})}
-                className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
-              />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">URLs das Imagens de Fundo (Carrossel)</label>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Insira uma URL por linha. Estas imagens alternarão a cada 5 segundos.</p>
-            <textarea 
-              rows={4}
-              value={heroImagesInput}
-              onChange={(e) => {
-                setHeroImagesInput(e.target.value);
-                const lines = e.target.value.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                setSettings({...settings, heroImages: JSON.stringify(lines)});
-              }}
-              placeholder={"https://exemplo.com/foto1.jpg\nhttps://exemplo.com/foto2.jpg"}
-              className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
-            />
-          </div>
-        </div>
-
-        {/* Seção História */}
-        <div className="bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
-          <h2 className="text-xl font-serif text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">Nossa História</h2>
-          
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Texto da História</label>
-            <textarea 
-              rows={6}
-              value={settings?.storyText || ""}
-              onChange={(e) => setSettings({...settings, storyText: e.target.value})}
-              className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none resize-y placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">URL da Imagem da História</label>
-            <input 
-              type="text" 
-              value={settings?.storyImage || ""}
-              onChange={(e) => setSettings({...settings, storyImage: e.target.value})}
-              className="p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
-            />
-          </div>
-        </div>
-
-        {/* Seção Cores */}
-        <div className="bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 flex flex-col gap-4">
-          <h2 className="text-xl font-serif text-zinc-900 dark:text-zinc-100 border-b border-zinc-100 dark:border-zinc-800 pb-2">Cores do Tema</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cor Principal (Botões e Destaques)</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="color" 
-                  value={settings?.primaryColor || "#d4af37"}
-                  onChange={(e) => setSettings({...settings, primaryColor: e.target.value})}
-                  className="w-12 h-12 rounded cursor-pointer border-none p-0" 
+      {/* Tab Content */}
+      <div className="flex flex-col gap-6">
+        {/* ─── TAB: GERAL ─── */}
+        {activeTab === "geral" && (
+          <>
+            <SectionCard
+              icon="💍"
+              title="Identificação do Casal"
+              description="Nome que aparece no hero, navbar e footer do site."
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Nome do Casal"
+                  value={settings.heroTitle}
+                  onChange={(e) => update("heroTitle", e.target.value)}
+                  placeholder="Luiza & Lucas"
                 />
-                <input 
-                  type="text" 
-                  value={settings?.primaryColor || "#d4af37"}
-                  onChange={(e) => setSettings({...settings, primaryColor: e.target.value})}
-                  className="flex-1 p-3 font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
+                <Input
+                  label="Subtítulo / Data Exibida"
+                  value={settings.heroSubtitle}
+                  onChange={(e) => update("heroSubtitle", e.target.value)}
+                  placeholder="15 de Novembro de 2026"
                 />
               </div>
-            </div>
+            </SectionCard>
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cor Secundária (Fundos Alternativos)</label>
-              <div className="flex items-center gap-3">
-                <input 
-                  type="color" 
-                  value={settings?.secondaryColor || "#fdf4e3"}
-                  onChange={(e) => setSettings({...settings, secondaryColor: e.target.value})}
-                  className="w-12 h-12 rounded cursor-pointer border-none p-0" 
+            <SectionCard
+              icon="📅"
+              title="Data do Casamento"
+              description="Usado no countdown regressivo e no footer. Altere aqui para atualizar automaticamente."
+            >
+              <Input
+                label="Data e Hora do Casamento"
+                type="datetime-local"
+                value={settings.weddingDate}
+                onChange={(e) => update("weddingDate", e.target.value)}
+              />
+            </SectionCard>
+
+            <SectionCard
+              icon="🎨"
+              title="Paleta de Cores"
+              description="Cores que definem o visual do site. Afetam partículas, botões e destaques."
+            >
+              <div className="grid grid-cols-2 gap-6">
+                <ColorPicker
+                  label="Cor Primária"
+                  value={settings.primaryColor}
+                  onChange={(v) => update("primaryColor", v)}
                 />
-                <input 
-                  type="text" 
-                  value={settings?.secondaryColor || "#fdf4e3"}
-                  onChange={(e) => setSettings({...settings, secondaryColor: e.target.value})}
-                  className="flex-1 p-3 font-mono rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400 dark:placeholder:text-zinc-500" 
+                <ColorPicker
+                  label="Cor Secundária"
+                  value={settings.secondaryColor}
+                  onChange={(v) => update("secondaryColor", v)}
                 />
               </div>
-            </div>
-          </div>
-        </div>
-      </form>
+            </SectionCard>
+          </>
+        )}
+
+        {/* ─── TAB: CONTEÚDO ─── */}
+        {activeTab === "conteudo" && (
+          <>
+            <SectionCard
+              icon="🖼️"
+              title="Seção Hero (Topo do Site)"
+              description="Imagens que aparecem no carrossel de fundo do cabeçalho."
+            >
+              <Input
+                label="Imagem Principal (URL)"
+                value={settings.heroImage}
+                onChange={(e) => update("heroImage", e.target.value)}
+                placeholder="/hero-bg.jpg ou URL externa"
+              />
+              <Textarea
+                label="Imagens do Carrossel (JSON)"
+                value={settings.heroImages}
+                onChange={(v) => update("heroImages", v)}
+                placeholder='["/foto1.jpg", "/foto2.jpg"]'
+                rows={3}
+                hint='Array JSON de URLs de imagens. Ex: ["/foto1.jpg", "/foto2.jpg"]'
+                isCode
+              />
+            </SectionCard>
+
+            <SectionCard
+              icon="📖"
+              title="Nossa História"
+              description="Texto de introdução e foto da seção 'Nossa História'. Os marcos da timeline são gerenciados em Grandes Momentos."
+            >
+              <Textarea
+                label="Texto da História"
+                value={settings.storyText}
+                onChange={(v) => update("storyText", v)}
+                placeholder="Conte a história do casal..."
+                rows={5}
+              />
+              <Input
+                label="Foto da história (URL)"
+                value={settings.storyImage}
+                onChange={(e) => update("storyImage", e.target.value)}
+                placeholder="/story.jpg"
+              />
+            </SectionCard>
+
+            <SectionCard
+              icon="🎮"
+              title="Mini-Game (Surpresa)"
+              description='Mensagem secreta que o convidado vê quando completa o jogo. Aparece na tela de vitória junto com confetes.'
+            >
+              <Textarea
+                label="Mensagem Secreta"
+                value={settings.secretMessage}
+                onChange={(v) => update("secretMessage", v)}
+                placeholder="Obrigado por estar nessa jornada com a gente! Cada pessoa que estará presente faz parte da nossa história..."
+                rows={4}
+                hint="Esta mensagem é revelada quando o convidado completa o mini-game do Hero."
+              />
+            </SectionCard>
+          </>
+        )}
+
+        {/* ─── TAB: PIX & RODAPÉ ─── */}
+        {activeTab === "avancado" && (
+          <>
+            <SectionCard
+              icon="💰"
+              title="Configuração PIX"
+              description="Chave PIX para receber contribuições dos presentes. Pode ser CPF, e-mail, telefone ou chave aleatória."
+            >
+              <Input
+                label="Chave PIX"
+                value={settings.pixKey}
+                onChange={(e) => update("pixKey", e.target.value)}
+                placeholder="seu-email@gmail.com ou CPF ou chace aleatória"
+              />
+              <p className="text-[10px] text-stone/60 font-sans -mt-2">
+                Esta chave será utilizada nos QR Codes gerados para pagamento de presentes.
+              </p>
+            </SectionCard>
+
+            <SectionCard
+              icon="📋"
+              title="Rodapé do Site"
+              description="Texto e informações que aparecem no final de cada página."
+            >
+              <Input
+                label="Texto do Rodapé"
+                value={settings.footerText}
+                onChange={(e) => update("footerText", e.target.value)}
+                placeholder="Feito com 💙"
+              />
+              <div className="bg-parchment rounded-lg p-4 border border-dust/50">
+                <p className="text-[10px] text-stone/60 font-sans uppercase tracking-wider mb-2">
+                  Pré-visualização do Rodapé
+                </p>
+                <div className="text-center">
+                  <p className="font-display italic text-base text-navy-deep">
+                    {settings.heroTitle || "Luiza & Lucas"}
+                  </p>
+                  <p className="text-[10px] text-stone font-sans mt-1">
+                    {settings.heroSubtitle || "15 de Novembro de 2026"} · {settings.footerText || "Feito com 💙"}
+                  </p>
+                  <p className="text-[9px] text-stone/40 font-sans mt-2">
+                    © 2026 Aeterna — Wedding Experience
+                  </p>
+                </div>
+              </div>
+            </SectionCard>
+          </>
+        )}
+      </div>
+
+      {/* Save Button — always visible */}
+      <div className="sticky bottom-4 z-10">
+        <Button
+          variant="primary"
+          size="lg"
+          onClick={handleSave}
+          loading={saving}
+          className="w-full shadow-hover"
+        >
+          Salvar Configurações ✓
+        </Button>
+      </div>
     </div>
   );
 }

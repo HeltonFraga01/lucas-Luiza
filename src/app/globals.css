@@ -1,21 +1,234 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ═══════════════════════════════════════════════════════════════
+   Aeterna Design System — "Aquarela em Movimento"
+   ═══════════════════════════════════════════════════════════════ */
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* ── PRIMÁRIAS ─────────────────────────────────────────────── */
+  --color-periwinkle: #6b7fd4;
+  --color-cornflower: #4a6fa5;
+  --color-cornflower-600: #3d5e8e;
+  --color-navy-deep: #2c3e6b;
+
+  /* ── SECUNDÁRIAS ───────────────────────────────────────────── */
+  --color-ice-blue: #d6e4f7;
+  --color-sky-wash: #ebf3fc;
+  --color-parchment: #f8f5f0;
+
+  /* ── NEUTROS ───────────────────────────────────────────────── */
+  --color-charcoal: #2d2d2d;
+  --color-stone: #6b6b6b;
+  --color-pearl: #ffffff;
+  --color-dust: #e8e5e0;
+
+  /* ── FEEDBACK ──────────────────────────────────────────────── */
+  --color-sage: #7bae8a;
+  --color-blush: #e8a0a0;
+  --color-amber: #d4a843;
+
+  /* ── ESPECIAIS ─────────────────────────────────────────────── */
+  --color-gold-leaf: #c9a84c;
+  --color-gold-light: #f0c665;
+
+  /* ── FONT FAMILIES ─────────────────────────────────────────── */
+  --font-display: var(--font-cormorant);
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-eb-garamond);
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  /* ── TYPE SCALE (clamp for responsive) ─────────────────────── */
+  --text-hero: clamp(3.5rem, 8vw, 6rem);
+  --text-section: clamp(2rem, 4vw, 3rem);
+  --text-title: clamp(1.5rem, 2.5vw, 2rem);
+  --text-body: clamp(0.875rem, 1.2vw, 1rem);
+  --text-small: 0.75rem;
+
+  /* ── SPACING ───────────────────────────────────────────────── */
+  --spacing-0: 0px;
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* ── BORDER RADIUS ─────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ── SHADOWS ───────────────────────────────────────────────── */
+  --shadow-card: 0 2px 12px rgba(44, 62, 107, 0.08);
+  --shadow-hover: 0 8px 32px rgba(44, 62, 107, 0.14);
+  --shadow-modal: 0 24px 64px rgba(44, 62, 107, 0.2);
+  --shadow-3d: 0 0 80px rgba(107, 127, 212, 0.15);
 }
 
-/* removed prefer dark scheme to enforce the light aesthetic */
+/* ── CSS CUSTOM PROPERTIES (Motion, Watercolor) ──────────────── */
+:root {
+  --background: #f8f5f0;
+  --foreground: #2d2d2d;
+
+  /* Motion Durations */
+  --duration-fast: 150ms;
+  --duration-base: 300ms;
+  --duration-slow: 600ms;
+  --duration-scenic: 1200ms;
+
+  /* Easings */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-expo: cubic-bezier(0.55, 0, 1, 0.45);
+  --ease-gentle: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Watercolor overlays */
+  --watercolor-1: rgba(107, 127, 212, 0.15);
+  --watercolor-2: rgba(214, 228, 247, 0.3);
+}
+
+/* ── GLOBAL BASE STYLES ──────────────────────────────────────── */
+html {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), "DM Sans", system-ui, sans-serif;
+  line-height: 1.6;
+  font-size: clamp(16px, 1.25vw, 18px);
+  transition: background-color var(--duration-base) var(--ease-out-expo);
+}
+
+/* ── RESPONSIVE TYPOGRAPHY ───────────────────────────────────── */
+h1 {
+  font-family: var(--font-display), "Cormorant Garamond", serif;
+  font-size: var(--text-hero);
+  font-weight: 300;
+  font-style: italic;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--color-navy-deep);
+}
+
+h2 {
+  font-family: var(--font-display), "Cormorant Garamond", serif;
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.2;
+  color: var(--color-navy-deep);
+}
+
+h3 {
+  font-family: var(--font-serif), "EB Garamond", serif;
+  font-size: clamp(20px, 4vw, 32px);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--color-charcoal);
+}
+
+h4,
+h5,
+h6 {
+  font-family: var(--font-sans), "DM Sans", sans-serif;
+  font-weight: 500;
+}
+
+/* ── FOCUS RING (Accessibility) ──────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-periwinkle);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* ── DEFAULT TRANSITIONS ─────────────────────────────────────── */
+a,
+button,
+input,
+select,
+textarea {
+  transition: all var(--duration-base) var(--ease-out-expo);
+}
+
+a {
+  color: var(--color-cornflower);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-navy-deep);
+}
+
+/* ── SCROLLBAR STYLING ───────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-parchment);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-dust);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-stone);
+}
+
+/* ── SELECTION ───────────────────────────────────────────────── */
+::selection {
+  background: var(--color-ice-blue);
+  color: var(--color-navy-deep);
+}
+
+/* ── UTILITY CLASSES ─────────────────────────────────────────── */
+.text-gradient-gold {
+  background: linear-gradient(135deg, #c9a84c, #f0c665);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.badge-most-wanted {
+  background: linear-gradient(135deg, #c9a84c, #f0c665);
+  color: #2d2d2d;
+  font-family: var(--font-sans), "DM Sans", sans-serif;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 8px rgba(201, 168, 76, 0.4);
+}
+
+/* ── SHIMMER LOADING ANIMATION ───────────────────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-dust) 25%,
+    var(--color-sky-wash) 50%,
+    var(--color-dust) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
 }

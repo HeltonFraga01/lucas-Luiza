@@ -98,10 +98,17 @@ model SiteSettings {
   heroImages      String   @default("[\"/hero-bg.jpg\"]") // JSON string of image URLs
   heroTitle       String   @default("Lucas & Luiza")
   heroSubtitle    String   @default("15 de Novembro de 2026")
+  weddingDate     DateTime @default("2026-11-15T16:00:00.000Z")
   storyText       String   @default("Nossa história em detalhes...")
   storyImage      String   @default("/story.jpg")
   primaryColor    String   @default("#6a8cb8")
   secondaryColor  String   @default("#eaf2fa")
+  secretMessage   String   @default("Obrigado por estar nessa jornada com a gente! Cada pessoa que estará presente faz parte da nossa história. Não vemos a hora de celebrar com você!")
+  pixKey          String   @default("")
+  footerText      String   @default("Feito com 💙")
+  itineraryTitle  String   @default("Programação do Dia")
+  itinerarySubtitle String @default("Cada momento foi pensado com carinho para que todos aproveitem ao máximo este dia especial.")
+
   updatedAt       DateTime @updatedAt
 }
 

@@ -1,17 +1,79 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { fadeInUp, staggerContainer } from "@/lib/motion";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Badge from "@/components/ui/Badge";
+import ProgressBar from "@/components/ui/ProgressBar";
+import { toast } from "@/components/ui/Toast";
+
+// ═══════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════
+
+interface GiftItem {
+  id: number;
+  title: string;
+  description: string | null;
+  imageUrl: string | null;
+  externalUrl: string | null;
+  price: number;
+  category: string;
+  isMostWanted: boolean;
+  isGroupGift: boolean;
+  targetAmount: number | null;
+  raisedAmount: number;
+  isPurchased: boolean;
+  createdAt: string;
+}
+
+type SortOption = "most-wanted" | "price-asc" | "price-desc" | "newest";
+
+const CATEGORIES = [
+  "Todos",
+  "Cozinha",
+  "Quarto e Banho",
+  "Casa",
+  "Aventuras",
+  "Fundo de Experiência",
+  "Outros",
+];
+
+const PRICE_RANGES = [
+  { label: "Qualquer valor", min: 0, max: Infinity },
+  { label: "Até R$ 100", min: 0, max: 100 },
+  { label: "R$ 100 – R$ 300", min: 100, max: 300 },
+  { label: "Acima de R$ 300", min: 300, max: Infinity },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
 
 export default function GiftRegistry() {
-  const [filter, setFilter] = useState("Todos");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [checkoutGift, setCheckoutGift] = useState<any | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [gifts, setGifts] = useState<any[]>([]);
+  const [gifts, setGifts] = useState<GiftItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Filters
+  const [category, setCategory] = useState("Todos");
+  const [priceRange, setPriceRange] = useState(0);
+  const [hideReceived, setHideReceived] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>("most-wanted");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Modals
+  const [selectedGift, setSelectedGift] = useState<GiftItem | null>(null);
+  const [pixGift, setPixGift] = useState<GiftItem | null>(null);
+  const [contribAmount, setContribAmount] = useState("");
+  const [contribName, setContribName] = useState("");
+  const [contribEmail, setContribEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Fetch gifts
   useEffect(() => {
     async function fetchGifts() {
       try {
@@ -29,171 +91,519 @@ export default function GiftRegistry() {
     fetchGifts();
   }, []);
 
-  const categories = ["Todos", "Casa", "Cozinha", "Lua de Mel", "Aventuras"];
+  // Restore contributor from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("rsvp_guest");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setContribName(parsed.name || "");
+        setContribEmail(parsed.email || "");
+      }
+    } catch { /* no-op */ }
+  }, []);
 
-  const filteredGifts = filter === "Todos" ? gifts : gifts.filter((g) => g.category === filter);
+  // Filtered + sorted
+  const filtered = useMemo(() => {
+    const range = PRICE_RANGES[priceRange];
+    let result = gifts.filter((g) => {
+      if (category !== "Todos" && g.category !== category) return false;
+      if (g.price < range.min || g.price > range.max) return false;
+      if (hideReceived && g.isPurchased) return false;
+      return true;
+    });
+
+    switch (sortBy) {
+      case "most-wanted":
+        result = [...result].sort((a, b) => (b.isMostWanted ? 1 : 0) - (a.isMostWanted ? 1 : 0));
+        break;
+      case "price-asc":
+        result = [...result].sort((a, b) => a.price - b.price);
+        break;
+      case "price-desc":
+        result = [...result].sort((a, b) => b.price - a.price);
+        break;
+      case "newest":
+        result = [...result].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        break;
+    }
+    return result;
+  }, [gifts, category, priceRange, hideReceived, sortBy]);
+
+  // Determine if a gift should be a large tile (2x2)
+  const isLargeTile = useCallback((gift: GiftItem) => {
+    return gift.isGroupGift || gift.price > 1000 || gift.isMostWanted;
+  }, []);
+
+  // Open PIX flow
+  const handleContribute = useCallback((gift: GiftItem) => {
+    setSelectedGift(null);
+    setPixGift(gift);
+    setContribAmount(gift.isGroupGift ? "" : gift.price.toString());
+  }, []);
+
+  // Submit contribution
+  const handleSubmitContribution = useCallback(async () => {
+    if (!pixGift || !contribName || !contribEmail || !contribAmount) return;
+    setSubmitting(true);
+
+    try {
+      // Save to localStorage
+      localStorage.setItem("rsvp_guest", JSON.stringify({ name: contribName, email: contribEmail }));
+
+      const res = await fetch("/api/registry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          giftItemId: pixGift.id,
+          contributorName: contribName,
+          contributorEmail: contribEmail,
+          amount: parseFloat(contribAmount),
+          paymentMethod: "pix",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Erro ao registrar contribuição");
+
+      toast("Contribuição registrada com sucesso! 🎉", "success");
+      setPixGift(null);
+
+      // Refresh gifts
+      const updated = await fetch("/api/registry");
+      if (updated.ok) setGifts(await updated.json());
+    } catch {
+      toast("Erro ao registrar contribuição. Tente novamente.", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [pixGift, contribName, contribEmail, contribAmount]);
+
+  const pixKey = process.env.NEXT_PUBLIC_PIX_KEY || "chave-pix@email.com";
+
+  const handleCopyPix = useCallback(() => {
+    navigator.clipboard.writeText(pixKey);
+    toast("Chave PIX copiada! 📋", "info");
+  }, [pixKey]);
+
+  const resetFilters = useCallback(() => {
+    setCategory("Todos");
+    setPriceRange(0);
+    setHideReceived(true);
+    setSortBy("most-wanted");
+  }, []);
 
   return (
-    <section id="presentes" className="py-24 bg-zinc-50  font-sans">
+    <section id="presentes" className="relative w-full py-20 md:py-32 bg-sky-wash">
+      {/* Watercolor decoration */}
+      <div
+        className="absolute top-0 left-0 w-1/2 h-1/3 pointer-events-none opacity-30"
+        style={{ background: "radial-gradient(ellipse at 20% 20%, rgba(107,127,212,0.12) 0%, transparent 60%)" }}
+      />
+
       <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-serif text-zinc-900  mb-4">
+        {/* ── Section Header ──────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="text-center mb-12"
+        >
+          <h2 className="font-display italic font-light text-navy-deep mb-3">
             Lista de Presentes
           </h2>
-          <p className="text-lg text-zinc-600  max-w-2xl mx-auto">
-            O seu maior presente é a sua presença. Mas, se desejar nos presentear de outra forma, ficaremos muito agradecidos com qualquer contribuição para a nossa nova vida.
+          <p className="text-stone text-sm font-sans max-w-lg mx-auto">
+            O maior presente é a sua presença. Mas se desejar nos presentear, ficaremos muito felizes
+            com qualquer contribuição para a nossa nova vida juntos.
           </p>
-        </div>
+        </motion.div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap justify-center gap-2 mb-12">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setFilter(c)}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                filter === c
-                  ? "bg-[#d4af37] text-white shadow-lg shadow-[#d4af37]/20"
-                  : "bg-white  text-zinc-600  border border-zinc-200  hover:border-[#d4af37] hover:text-[#d4af37]"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-
-        {/* Registry Grid */}
-        {loading ? (
-          <div className="w-full py-20 flex justify-center text-zinc-400">Carregando lista de presentes...</div>
-        ) : gifts.length === 0 ? (
-          <div className="w-full py-20 flex justify-center text-zinc-400">Nenhum presente disponível no momento.</div>
-        ) : (
-          <motion.div layout className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            <AnimatePresence>
-              {filteredGifts.map((gift) => (
-                <motion.div
-                  key={gift.id}
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  transition={{ duration: 0.3 }}
-                  className="group relative bg-white  rounded-2xl overflow-hidden border border-zinc-200  shadow-sm hover:shadow-xl transition-all flex flex-col h-full"
-                >
-                  <div className="relative w-full aspect-square bg-zinc-100  overflow-hidden">
-                    {gift.imageUrl ? (
-                       <Image
-                         src={gift.imageUrl}
-                         alt={gift.title}
-                         fill
-                         className="object-cover group-hover:scale-105 transition-transform duration-500"
-                         unoptimized
-                       />
-                    ) : (
-                       <div className="w-full h-full flex items-center justify-center text-zinc-400">Sem Foto</div>
-                    )}
-                    {gift.isGroupGift && (
-                      <div className="absolute top-4 left-4 bg-white/90  backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-[#d4af37]">
-                        Cota Compartilhada
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-6 flex flex-col grow">
-                    <span className="text-xs font-medium text-zinc-400 mb-2 uppercase tracking-wider">{gift.category}</span>
-                    <h3 className="text-lg font-medium text-zinc-900  leading-tight mb-4 grow">
-                      {gift.title}
-                    </h3>
-                    
-                    <div className="mt-auto">
-                      {gift.isGroupGift ? (
-                        <div className="flex flex-col gap-2 mb-4">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">Arrecadado</span>
-                            <span className="font-semibold text-zinc-900 ">
-                              R$ {gift.raisedAmount} / R$ {gift.targetAmount}
-                            </span>
-                          </div>
-                          <div className="h-2 w-full bg-zinc-100  rounded-full overflow-hidden">
-                            <div 
-                              className="h-full bg-[#d4af37] rounded-full transition-all duration-1000"
-                              style={{ width: `${Math.min(100, ((gift.raisedAmount || 0) / (gift.targetAmount || 1)) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="text-xl font-semibold text-[#d4af37] mb-6">
-                          R$ {gift.price}
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => setCheckoutGift(gift)}
-                        className="w-full py-3 bg-zinc-900  text-white  font-medium rounded-xl hover:bg-zinc-800 :bg-white transition-colors"
-                      >
-                        Presentear
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        )}
-
-        {/* Mock Checkout Modal */}
-        <AnimatePresence>
-          {checkoutGift && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setCheckoutGift(null)}
-              className="fixed inset-0 z-50 bg-zinc-900/60 backdrop-blur-sm flex items-center justify-center p-4"
-            >
-              <motion.div 
-                initial={{ scale: 0.95, y: 20 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.95, y: 20 }}
-                onClick={(e) => e.stopPropagation()}
-                className="w-full max-w-md bg-white  rounded-3xl p-8 shadow-2xl relative border border-zinc-200 "
+        {/* ── Filters Bar ─────────────────────────────────── */}
+        <div className="mb-8">
+          {/* Category pills */}
+          <div className="flex flex-wrap justify-center gap-2 mb-4">
+            {CATEGORIES.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCategory(c)}
+                className={`px-4 py-2 rounded-pill text-xs font-sans font-medium tracking-wide
+                            transition-all duration-300 cursor-pointer
+                            ${category === c
+                              ? "bg-cornflower text-pearl shadow-sm"
+                              : "bg-pearl text-stone border border-dust hover:border-cornflower hover:text-cornflower"
+                            }`}
               >
-                <button 
-                  onClick={() => setCheckoutGift(null)}
-                  className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100  text-zinc-500 hover:text-zinc-900 :text-white"
-                >
-                  ✕
-                </button>
+                {c}
+              </button>
+            ))}
+          </div>
 
-                <h3 className="text-2xl font-serif mb-2">Presentear</h3>
-                <p className="text-zinc-600  mb-8">{checkoutGift.title}</p>
-                
-                <div className="bg-zinc-50  rounded-2xl p-6 flex flex-col items-center justify-center border border-zinc-200  mb-6">
-                  {/* Mock QR Code area */}
-                  <div className="w-48 h-48 bg-white rounded-xl mb-4 flex items-center justify-center border-4 border-zinc-200 ">
-                    <span className="text-zinc-400 font-mono text-sm">(QR Code PIX)</span>
+          {/* Toggle filters */}
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="text-xs text-stone font-sans hover:text-cornflower transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+              </svg>
+              {showFilters ? "Ocultar filtros" : "Mais filtros"}
+            </button>
+
+            {(category !== "Todos" || priceRange !== 0 || !hideReceived) && (
+              <button
+                onClick={resetFilters}
+                className="text-xs text-blush font-sans hover:underline transition-colors cursor-pointer"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
+          {/* Expanded filters */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-wrap items-center justify-center gap-6 mt-4 p-4 bg-pearl rounded-xl shadow-card">
+                  {/* Price range */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-sans text-stone uppercase tracking-wider">Faixa de preço</span>
+                    <select
+                      value={priceRange}
+                      onChange={(e) => setPriceRange(Number(e.target.value))}
+                      className="text-sm font-sans text-charcoal bg-transparent border-b border-dust
+                                 focus:border-cornflower outline-none pb-1 cursor-pointer"
+                    >
+                      {PRICE_RANGES.map((r, i) => (
+                        <option key={i} value={i}>{r.label}</option>
+                      ))}
+                    </select>
                   </div>
-                  <p className="text-center text-sm text-zinc-600 ">
-                    Escaneie o QR Code acima no app do seu banco ou copie a chave PIX abaixo:
-                  </p>
-                </div>
 
-                <div className="flex gap-2">
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value="00020126420014br.gov.bcb.pix..." 
-                    className="grow p-3 rounded-xl bg-zinc-100  border-none text-zinc-500 text-sm font-mono outline-none"
-                  />
-                  <button className="px-6 py-3 bg-[#d4af37] text-white rounded-xl font-medium hover:bg-[#c4a030] transition-colors">
-                    Copiar
-                  </button>
+                  {/* Sort */}
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-sans text-stone uppercase tracking-wider">Ordenar por</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as SortOption)}
+                      className="text-sm font-sans text-charcoal bg-transparent border-b border-dust
+                                 focus:border-cornflower outline-none pb-1 cursor-pointer"
+                    >
+                      <option value="most-wanted">Mais desejados</option>
+                      <option value="price-asc">Preço (menor)</option>
+                      <option value="price-desc">Preço (maior)</option>
+                      <option value="newest">Recém adicionados</option>
+                    </select>
+                  </div>
+
+                  {/* Toggle received */}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <div
+                      className={`w-9 h-5 rounded-pill transition-colors duration-200 relative
+                                  ${hideReceived ? "bg-cornflower" : "bg-dust"}`}
+                      onClick={() => setHideReceived(!hideReceived)}
+                    >
+                      <div
+                        className={`absolute top-0.5 w-4 h-4 rounded-full bg-pearl shadow transition-transform duration-200
+                                    ${hideReceived ? "translate-x-4" : "translate-x-0.5"}`}
+                      />
+                    </div>
+                    <span className="text-xs font-sans text-stone">Só disponíveis</span>
+                  </label>
                 </div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ── Bento Grid ──────────────────────────────────── */}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className={`skeleton ${i < 2 ? "sm:col-span-2 sm:row-span-2 aspect-square" : "aspect-square"}`} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <span className="text-5xl">🎁</span>
+            <p className="text-stone font-sans text-center">
+              Nenhum presente encontrado com esses filtros.
+            </p>
+            <button
+              onClick={resetFilters}
+              className="text-sm text-cornflower font-sans font-medium hover:underline cursor-pointer"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        ) : (
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-[280px]"
+          >
+            {filtered.map((gift) => {
+              const large = isLargeTile(gift);
+              return (
+                <motion.div
+                  key={gift.id}
+                  variants={fadeInUp}
+                  layout
+                  onClick={() => setSelectedGift(gift)}
+                  className={`
+                    group relative rounded-xl overflow-hidden cursor-pointer
+                    shadow-card hover:shadow-hover transition-shadow duration-300
+                    ${large ? "sm:col-span-2 sm:row-span-2" : ""}
+                  `}
+                >
+                  {/* Image */}
+                  {gift.imageUrl ? (
+                    <Image
+                      src={gift.imageUrl}
+                      alt={gift.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes={large ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 25vw"}
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-dust/30 flex items-center justify-center">
+                      <span className="text-4xl opacity-40">🎁</span>
+                    </div>
+                  )}
+
+                  {/* Hover Overlay */}
+                  <div className="absolute inset-0 bg-linear-to-t from-charcoal/70 via-charcoal/20 to-transparent
+                                  opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                  {/* Always-visible bottom info */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4
+                                  bg-linear-to-t from-charcoal/60 to-transparent">
+                    <h4 className="font-serif text-sm md:text-base text-pearl leading-tight line-clamp-2 mb-1">
+                      {gift.title}
+                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-sans text-sm font-semibold text-gold-light">
+                        R$ {gift.price.toLocaleString("pt-BR")}
+                      </span>
+                      <span className="text-[10px] text-pearl/70 font-sans uppercase tracking-wider">
+                        {gift.category}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Badges */}
+                  <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                    {gift.isMostWanted && <Badge variant="gold" size="sm">★ Mais desejado</Badge>}
+                    {gift.isGroupGift && <Badge variant="default" size="sm">Vaquinha</Badge>}
+                    {gift.isPurchased && <Badge variant="success" size="sm">Recebido ✓</Badge>}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
       </div>
+
+      {/* ═══ Gift Detail Modal ═══════════════════════════════ */}
+      <Modal
+        isOpen={!!selectedGift}
+        onClose={() => setSelectedGift(null)}
+        title={selectedGift?.title}
+        size="lg"
+      >
+        {selectedGift && (
+          <div className="flex flex-col gap-5">
+            {/* Image */}
+            {selectedGift.imageUrl && (
+              <div className="relative w-full aspect-video rounded-lg overflow-hidden">
+                <Image
+                  src={selectedGift.imageUrl}
+                  alt={selectedGift.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 600px"
+                  unoptimized
+                />
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="font-serif text-2xl text-gold-leaf font-medium">
+                R$ {selectedGift.price.toLocaleString("pt-BR")}
+              </span>
+              <Badge variant={selectedGift.isPurchased ? "success" : "default"}>
+                {selectedGift.isPurchased ? "Recebido ✓" : "Disponível"}
+              </Badge>
+              {selectedGift.isMostWanted && <Badge variant="gold">★ Mais desejado</Badge>}
+            </div>
+
+            {selectedGift.description && (
+              <p className="text-stone text-sm font-sans leading-relaxed">
+                {selectedGift.description}
+              </p>
+            )}
+
+            {/* Group gift progress */}
+            {selectedGift.isGroupGift && selectedGift.targetAmount && (
+              <ProgressBar
+                value={selectedGift.raisedAmount}
+                max={selectedGift.targetAmount}
+                labelFormat="currency"
+                variant="gold"
+              />
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3 mt-2">
+              {selectedGift.isPurchased ? (
+                <p className="text-stone font-sans text-sm italic">
+                  Este presente já foi recebido. Obrigado pela intenção! 💙
+                </p>
+              ) : (
+                <>
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    className="flex-1"
+                    onClick={() => handleContribute(selectedGift)}
+                  >
+                    Contribuir via PIX
+                  </Button>
+                  {selectedGift.externalUrl && (
+                    <a
+                      href={selectedGift.externalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center px-5 py-3
+                                 border-[1.5px] border-dust rounded-pill text-sm font-sans font-medium text-stone
+                                 hover:border-cornflower hover:text-cornflower transition-all duration-300"
+                    >
+                      Ver na loja ↗
+                    </a>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ═══ PIX Checkout Modal ══════════════════════════════ */}
+      <Modal
+        isOpen={!!pixGift}
+        onClose={() => setPixGift(null)}
+        title="Contribuir via PIX"
+        size="md"
+      >
+        {pixGift && (
+          <div className="flex flex-col gap-5">
+            {/* Summary */}
+            <div className="bg-sky-wash rounded-lg p-4 flex items-center justify-between">
+              <div>
+                <p className="font-serif text-base text-charcoal">{pixGift.title}</p>
+                <p className="text-xs text-stone font-sans mt-0.5">{pixGift.category}</p>
+              </div>
+              {contribAmount && (
+                <span className="font-serif text-xl text-gold-leaf font-medium">
+                  R$ {parseFloat(contribAmount).toLocaleString("pt-BR")}
+                </span>
+              )}
+            </div>
+
+            {/* Contributor info */}
+            <Input
+              label="Seu Nome"
+              value={contribName}
+              onChange={(e) => setContribName(e.target.value)}
+              placeholder="Nome completo"
+            />
+
+            <Input
+              label="Seu E-mail"
+              type="email"
+              value={contribEmail}
+              onChange={(e) => setContribEmail(e.target.value)}
+              placeholder="seu@email.com"
+            />
+
+            {pixGift.isGroupGift && (
+              <Input
+                label="Valor da contribuição"
+                type="number"
+                value={contribAmount}
+                onChange={(e) => setContribAmount(e.target.value)}
+                placeholder="Ex: 100.00"
+                hint="Digite o valor que deseja contribuir."
+              />
+            )}
+
+            {/* PIX Info */}
+            <div className="bg-parchment rounded-xl p-5 flex flex-col items-center gap-4 border border-dust">
+              {/* QR Code placeholder */}
+              <div className="w-40 h-40 bg-pearl rounded-lg border-2 border-dust flex items-center justify-center">
+                <div className="text-center">
+                  <span className="text-3xl block mb-1">📱</span>
+                  <span className="text-[10px] text-stone font-sans">QR Code PIX</span>
+                </div>
+              </div>
+
+              <p className="text-xs text-stone font-sans text-center">
+                Escaneie o QR Code no app do seu banco ou copie a chave PIX abaixo:
+              </p>
+
+              <div className="flex w-full gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={pixKey}
+                  className="flex-1 px-3 py-2.5 text-xs font-mono text-stone bg-pearl
+                             border border-dust rounded-md truncate"
+                />
+                <button
+                  onClick={handleCopyPix}
+                  className="px-4 py-2.5 bg-cornflower text-pearl text-xs font-sans font-medium
+                             rounded-md hover:bg-cornflower-600 transition-colors cursor-pointer shrink-0"
+                >
+                  Copiar
+                </button>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPixGift(null)}
+                className="px-5 py-3 text-sm text-stone font-sans font-medium hover:text-cornflower transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <Button
+                variant="primary"
+                size="lg"
+                className="flex-1"
+                onClick={handleSubmitContribution}
+                loading={submitting}
+                disabled={!contribName || !contribEmail || !contribAmount}
+              >
+                Confirmar Pagamento ✓
+              </Button>
+            </div>
+
+            <p className="text-[10px] text-stone/60 font-sans text-center">
+              100% do valor vai diretamente para os noivos. Taxa zero.
+            </p>
+          </div>
+        )}
+      </Modal>
     </section>
   );
 }

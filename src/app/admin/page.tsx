@@ -1,64 +1,244 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+// ═══════════════════════════════════════════════════════════════
+// StatCard Component
+// ═══════════════════════════════════════════════════════════════
+
+function StatCard({
+  label,
+  value,
+  detail,
+  icon,
+  color = "cornflower",
+  href,
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+  icon: string;
+  color?: "cornflower" | "sage" | "gold" | "blush";
+  href?: string;
+}) {
+  const colorMap = {
+    cornflower: "bg-ice-blue text-cornflower",
+    sage: "bg-sage/15 text-sage",
+    gold: "bg-gold-leaf/10 text-gold-leaf",
+    blush: "bg-blush/10 text-blush",
+  };
+
+  const content = (
+    <div className={`
+      bg-pearl rounded-xl border border-dust p-5 flex flex-col gap-3
+      ${href ? "hover:shadow-hover hover:border-cornflower/30 transition-all duration-300 cursor-pointer" : ""}
+    `}>
+      <div className="flex items-center justify-between">
+        <span className={`w-9 h-9 rounded-lg ${colorMap[color]} flex items-center justify-center text-lg`}>
+          {icon}
+        </span>
+        {href && <span className="text-xs text-stone">→</span>}
+      </div>
+      <div>
+        <p className="text-2xl font-serif font-medium text-charcoal">{value}</p>
+        <p className="text-xs font-sans text-stone mt-0.5">{label}</p>
+      </div>
+      {detail && (
+        <p className="text-[10px] font-sans text-stone/70">{detail}</p>
+      )}
+    </div>
+  );
+
+  return href ? <Link href={href}>{content}</Link> : content;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Dashboard Page
+// ═══════════════════════════════════════════════════════════════
+
 export default async function AdminDashboard() {
-  const totalGuests = await prisma.guest.count();
-  const totalRsvps = await prisma.rsvp.count();
-  const confirmedRsvps = await prisma.rsvp.count({ where: { confirmed: true } });
-  const totalGifts = await prisma.giftItem.count();
-  
-  const raisedAmountResult = await prisma.giftItem.aggregate({
-    _sum: { raisedAmount: true }
-  });
-  const totalRaised = raisedAmountResult._sum.raisedAmount || 0;
+  const [
+    totalGuests,
+    totalRsvps,
+    confirmedRsvps,
+    declinedRsvps,
+    totalGifts,
+    purchasedGifts,
+    totalRaisedResult,
+    recentRsvps,
+    totalEvents,
+  ] = await Promise.all([
+    prisma.guest.count(),
+    prisma.rsvp.count(),
+    prisma.rsvp.count({ where: { confirmed: true } }),
+    prisma.rsvp.count({ where: { confirmed: false } }),
+    prisma.giftItem.count(),
+    prisma.giftItem.count({ where: { isPurchased: true } }),
+    prisma.giftItem.aggregate({ _sum: { raisedAmount: true } }),
+    prisma.rsvp.findMany({
+      take: 8,
+      orderBy: { submittedAt: "desc" },
+      include: { guest: true },
+    }),
+    prisma.event.count(),
+  ]);
+
+  const totalRaised = totalRaisedResult._sum.raisedAmount || 0;
+  const pendingRsvps = totalGuests - totalRsvps;
+  const confirmedPct = totalGuests > 0 ? ((confirmedRsvps / totalGuests) * 100).toFixed(1) : "0";
+  const giftsPct = totalGifts > 0 ? ((purchasedGifts / totalGifts) * 100).toFixed(0) : "0";
 
   return (
     <div className="flex flex-col gap-8">
+      {/* Header */}
       <div>
-        <h1 className="text-3xl font-serif text-zinc-900 dark:text-zinc-100">Visão Geral</h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mt-2">Bem-vindos ao painel de controle do casamento.</p>
+        <h1 className="font-serif text-2xl md:text-3xl text-charcoal">Visão Geral</h1>
+        <p className="text-stone text-sm font-sans mt-1">
+          Acompanhe o progresso do casamento em tempo real.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric Cards */}
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-500">Total de Convidados</span>
-          <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{totalGuests}</span>
-        </div>
-        
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-500">RSVPs (Respostas)</span>
-          <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{totalRsvps}</span>
-          <span className="text-xs text-green-600 font-medium">{confirmedRsvps} confirmados</span>
-        </div>
-
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-500">Presentes na Lista</span>
-          <span className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">{totalGifts}</span>
-        </div>
-
-        <div className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm flex flex-col gap-2">
-          <span className="text-sm font-medium text-zinc-500">Arrecadação R$</span>
-          <span className="text-3xl font-bold text-[#d4af37]">R$ {totalRaised.toLocaleString('pt-BR')}</span>
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <StatCard
+          icon="👥"
+          label="Total de Convidados"
+          value={totalGuests}
+          color="cornflower"
+          href="/admin/guests"
+        />
+        <StatCard
+          icon="✅"
+          label="RSVPs Confirmados"
+          value={confirmedRsvps}
+          detail={`${confirmedPct}% do total`}
+          color="sage"
+          href="/admin/guests"
+        />
+        <StatCard
+          icon="⏳"
+          label="RSVPs Pendentes"
+          value={pendingRsvps}
+          detail={`${declinedRsvps} recusaram`}
+          color="gold"
+        />
+        <StatCard
+          icon="💰"
+          label="Arrecadação PIX"
+          value={`R$ ${totalRaised.toLocaleString("pt-BR")}`}
+          detail={`${purchasedGifts}/${totalGifts} presentes recebidos (${giftsPct}%)`}
+          color="gold"
+          href="/admin/registry"
+        />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <Link href="/admin/guests" className="group p-6 bg-zinc-900 text-white rounded-2xl flex items-center justify-between hover:bg-zinc-800 transition-colors">
-          <div className="flex flex-col">
-            <span className="font-semibold text-lg">Gerenciar Convidados</span>
-            <span className="text-zinc-400 text-sm">Adicionar convidados e checar RSVPs confirmados.</span>
-          </div>
-          <span className="text-2xl group-hover:translate-x-2 transition-transform">→</span>
-        </Link>
-        <Link href="/admin/registry" className="group p-6 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 rounded-2xl flex items-center justify-between hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
-          <div className="flex flex-col">
-            <span className="font-semibold text-lg">Atualizar Lista de Presentes</span>
-            <span className="text-zinc-500 text-sm">Adicionar novos links de produtos via Scraping.</span>
-          </div>
-          <span className="text-2xl group-hover:translate-x-2 transition-transform">→</span>
-        </Link>
+      {/* Two columns: Recent RSVPs + Quick Links */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+        {/* Recent RSVPs */}
+        <div className="lg:col-span-2 bg-pearl rounded-xl border border-dust p-5">
+          <h3 className="font-serif text-lg text-charcoal mb-4">Últimas Respostas</h3>
+
+          {recentRsvps.length === 0 ? (
+            <p className="text-sm text-stone font-sans py-8 text-center">
+              Nenhuma resposta ainda. Compartilhe o link do site com seus convidados! 💌
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm font-sans">
+                <thead>
+                  <tr className="border-b border-dust text-left">
+                    <th className="pb-2 text-[10px] text-stone uppercase tracking-wider font-medium">Nome</th>
+                    <th className="pb-2 text-[10px] text-stone uppercase tracking-wider font-medium">Email</th>
+                    <th className="pb-2 text-[10px] text-stone uppercase tracking-wider font-medium">Status</th>
+                    <th className="pb-2 text-[10px] text-stone uppercase tracking-wider font-medium">Data</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentRsvps.map((rsvp) => (
+                    <tr key={rsvp.id} className="border-b border-dust/50 last:border-0">
+                      <td className="py-2.5 text-charcoal font-medium">{rsvp.guest.name}</td>
+                      <td className="py-2.5 text-stone">{rsvp.guest.email}</td>
+                      <td className="py-2.5">
+                        <span className={`
+                          inline-flex px-2 py-0.5 rounded-pill text-[10px] font-semibold uppercase tracking-wider
+                          ${rsvp.confirmed ? "bg-sage/15 text-sage" : "bg-blush/10 text-blush"}
+                        `}>
+                          {rsvp.confirmed ? "Confirmado" : "Recusou"}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-stone text-xs">
+                        {new Date(rsvp.submittedAt).toLocaleDateString("pt-BR")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Quick Actions */}
+        <div className="flex flex-col gap-3">
+          <QuickLink
+            href="/admin/guests"
+            icon="👥"
+            title="Gerenciar Convidados"
+            description="Adicionar, editar e gerenciar RSVPs"
+          />
+          <QuickLink
+            href="/admin/registry"
+            icon="🎁"
+            title="Lista de Presentes"
+            description="Adicionar via URL e gerenciar"
+          />
+          <QuickLink
+            href="/admin/timeline"
+            icon="📖"
+            title="Grandes Momentos"
+            description="Editar timeline da história"
+          />
+          <QuickLink
+            href="/admin/itinerary"
+            icon="📋"
+            title="Itinerário"
+            description={`${totalEvents} eventos cadastrados`}
+          />
+          <QuickLink
+            href="/admin/settings"
+            icon="⚙️"
+            title="Configurações"
+            description="Textos, imagens e chave PIX"
+          />
+        </div>
       </div>
     </div>
+  );
+}
+
+function QuickLink({
+  href,
+  icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center gap-4 p-4 bg-pearl rounded-xl border border-dust
+                 hover:border-cornflower/30 hover:shadow-card transition-all duration-300"
+    >
+      <span className="text-xl">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-sans font-medium text-sm text-charcoal group-hover:text-cornflower transition-colors">
+          {title}
+        </p>
+        <p className="text-[10px] text-stone font-sans truncate">{description}</p>
+      </div>
+      <span className="text-stone/40 group-hover:text-cornflower group-hover:translate-x-1 transition-all">→</span>
+    </Link>
   );
 }
