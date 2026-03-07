@@ -48,23 +48,34 @@ ENV HOSTNAME=0.0.0.0
 RUN addgroup --system --gid 1001 nodejs && \
   adduser --system --uid 1001 nextjs
 
-# Copia o standalone output do Next.js
+# O standalone output do Next.js já inclui tudo (Prisma, etc.)
+# Só precisamos copiar o standalone, o static e o public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# Copia Prisma (schema + client gerado) — necessário para runtime
+# Prisma schema para migrations no startup
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+
+# better-sqlite3 precisa de binário nativo — copia do builder
+# (standalone pode não incluir módulos nativos corretamente)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/better-sqlite3 ./node_modules/better-sqlite3
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma/adapter-better-sqlite3 ./node_modules/@prisma/adapter-better-sqlite3
+
+# Seed do banco pré-populado — copiado do contexto de build (não do builder)
+COPY --chown=nextjs:nodejs prisma/dev.db /app/seed.db
 
 # Pasta de dados (SQLite será montado como volume Docker)
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
 
-# Pasta de uploads (imagens enviadas via admin)
-RUN mkdir -p /app/public/uploads && chown nextjs:nodejs /app/public/uploads
+# Uploads seed — guardados fora do mount point para não conflitar com o volume
+COPY --from=builder --chown=nextjs:nodejs /app/public/uploads ./seed-uploads
+
+# Script de inicialização do schema (CREATE TABLE IF NOT EXISTS para todas as tabelas)
+COPY --chown=nextjs:nodejs scripts/init-db.js /app/scripts/init-db.js
+
+# Entrypoint: inicializa o banco a partir do seed se o volume estiver vazio
+COPY --chown=nextjs:nodejs docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 
 USER nextjs
 
@@ -73,4 +84,4 @@ EXPOSE 3010
 HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=40s \
   CMD curl -f http://localhost:3010/api/health || exit 1
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

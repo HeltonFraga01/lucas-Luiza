@@ -302,10 +302,14 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      if (!res.ok) throw new Error();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
       toast("Configurações salvas com sucesso! ✓", "success");
-    } catch {
-      toast("Erro ao salvar configurações.", "error");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro desconhecido";
+      toast(`Erro ao salvar: ${msg}`, "error");
     } finally {
       setSaving(false);
     }

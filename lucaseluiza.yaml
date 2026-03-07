@@ -1,0 +1,90 @@
+# Docker Swarm Deployment Configuration
+# Usage: docker stack deploy -c lucaseluiza.yaml lucaseluiza
+
+version: "3.8"
+
+services:
+  lucaseluiza:
+    image: heltonfraga/lucaseluiza:latest
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      - HOSTNAME=0.0.0.0
+      - NEXT_TELEMETRY_DISABLED=1
+      - TZ=America/Sao_Paulo
+      # SQLite — banco de dados montado como volume
+      - DATABASE_URL=file:/app/data/lucaseluiza.db
+      # Admin
+      - ADMIN_PASSWORD=Lucas&Luiza@2016
+      - JWT_SECRET_KEY=2bbba44b28afa98d0d864480885245c6655214f7001dd814bb100c562d70fb75
+      # Node.js Optimizations
+      - NODE_OPTIONS=--max-old-space-size=512
+
+    deploy:
+      replicas: 1  # CRÍTICO: apenas 1 replica para SQLite
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: any
+        delay: 5s
+        window: 120s
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.lucaseluiza.rule=Host(`lucashenriqueluiza.com.br`)
+        - traefik.http.routers.lucaseluiza.entrypoints=websecure
+        - traefik.http.routers.lucaseluiza.tls.certresolver=leresolver
+        - traefik.http.routers.lucaseluiza-http.rule=Host(`lucashenriqueluiza.com.br`)
+        - traefik.http.routers.lucaseluiza-http.entrypoints=web
+        - traefik.http.routers.lucaseluiza-http.middlewares=redirect-to-https
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+        - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+        - traefik.http.services.lucaseluiza.loadbalancer.server.port=3010
+        - traefik.http.services.lucaseluiza.loadbalancer.healthcheck.path=/api/health
+        - traefik.http.services.lucaseluiza.loadbalancer.healthcheck.interval=30s
+        - traefik.http.services.lucaseluiza.loadbalancer.healthcheck.timeout=10s
+
+    ports:
+      - "3010:3010"
+
+    volumes:
+      - lucaseluiza-data:/app/data
+      - lucaseluiza-uploads:/app/public/uploads
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+    networks:
+      - network_public
+
+networks:
+  network_public:
+    external: true
+
+volumes:
+  lucaseluiza-data:
+    external: true
+    name: lucaseluiza-data
+  lucaseluiza-uploads:
+    external: true
+    name: lucaseluiza-uploads

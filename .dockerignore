@@ -24,8 +24,8 @@ Thumbs.db
 .env.local
 .env.development
 
-# Dev database (production uses volume)
-prisma/dev.db
+# Dev database — incluído como seed na imagem (copiado pelo Dockerfile)
+# prisma/dev.db  ← comentado intencionalmente para seed de produção
 dev.db
 
 # Docs and specs

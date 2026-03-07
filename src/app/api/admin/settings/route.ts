@@ -35,7 +35,19 @@ export async function PUT(req: Request) {
       if (data[field] !== undefined) {
         // Special handling for weddingDate — convert string to Date
         if (field === "weddingDate" && typeof data[field] === "string") {
-          updateData[field] = new Date(data[field]);
+          // Normaliza "YYYY-MM-DDTHH:mm" → "YYYY-MM-DDTHH:mm:ss" (datetime-local omite segundos)
+          const raw = data[field] as string;
+          const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)
+            ? raw + ":00"
+            : raw;
+          const d = new Date(normalized);
+          if (isNaN(d.getTime())) {
+            return NextResponse.json(
+              { error: `weddingDate inválida: "${raw}"` },
+              { status: 400 }
+            );
+          }
+          updateData[field] = d;
         } else {
           updateData[field] = data[field];
         }
@@ -50,8 +62,9 @@ export async function PUT(req: Request) {
 
     return NextResponse.json(settings);
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "Erro interno do servidor";
     console.error("Erro ao atualizar configurações:", error);
-    return NextResponse.json({ error: "Erro interno do servidor" }, { status: 500 });
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 
