@@ -22,8 +22,13 @@ COPY . .
 RUN npx prisma generate
 
 # Build Next.js standalone
+# DATABASE_URL aponta para arquivo temporário — evita crash do Prisma
+# durante a etapa de pré-renderização estática no build.
+# O banco real é injetado em runtime via variável de ambiente no container.
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV DATABASE_URL="file:/tmp/build-placeholder.db"
+ENV NEXT_PHASE="phase-production-build"
 RUN npm run build
 
 # ─────────────────────────────────────────────────────────────
@@ -41,7 +46,7 @@ ENV HOSTNAME=0.0.0.0
 
 # Usuário não-root
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+  adduser --system --uid 1001 nextjs
 
 # Copia o standalone output do Next.js
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

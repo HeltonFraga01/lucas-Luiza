@@ -1,15 +1,42 @@
 import { prisma } from "@/lib/prisma";
 import GalleryAdminPanel from "./GalleryAdminPanel";
 
-export default async function AdminGalleryPage() {
-  const photos = await prisma.galleryPhoto.findMany({
-    orderBy: [{ featured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
-  });
+export const dynamic = "force-dynamic";
 
-  const plainPhotos = photos.map((p) => ({
-    ...p,
-    createdAt: p.createdAt.toISOString(),
-  }));
+export default async function AdminGalleryPage() {
+  type PlainPhoto = {
+    id: number;
+    url: string;
+    caption: string | null;
+    category: string;
+    width: number;
+    height: number;
+    featured: boolean;
+    createdAt: string;
+  };
+
+  let plainPhotos: PlainPhoto[] = [];
+
+  try {
+    const photos = await prisma.galleryPhoto.findMany({
+      orderBy: [{ featured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
+    });
+    plainPhotos = photos.map((p) => ({
+      id: p.id,
+      url: p.url,
+      caption: p.caption,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      category: (p as any).category ?? "geral",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      width: (p as any).width ?? 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      height: (p as any).height ?? 0,
+      featured: p.featured,
+      createdAt: p.createdAt.toISOString(),
+    }));
+  } catch {
+    // DB not available at build time — render with empty list
+  }
 
   return (
     <div className="flex flex-col gap-8">

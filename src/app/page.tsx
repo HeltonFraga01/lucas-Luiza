@@ -5,6 +5,10 @@ import RsvpWizard from "@/components/rsvp/RsvpWizard";
 import GiftRegistry from "@/components/registry/GiftRegistry";
 import { prisma } from "@/lib/prisma";
 
+type SiteSettings = NonNullable<Awaited<ReturnType<typeof prisma.siteSettings.findFirst>>>;
+type StoryTimeline = Awaited<ReturnType<typeof prisma.storyTimeline.findFirst>>;
+type WeddingEvent = Awaited<ReturnType<typeof prisma.event.findFirst>>;
+
 // ═══════════════════════════════════════════════════════════════
 // Footer Component (uses settings from parent)
 // ═══════════════════════════════════════════════════════════════
@@ -39,12 +43,25 @@ function Footer({
 // Page (Server Component — Story 7.2: data fetch + code-split)
 // ═══════════════════════════════════════════════════════════════
 
+// Force dynamic rendering — this page fetches DB data at runtime
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
-  const [settings, timeline, events] = await Promise.all([
-    prisma.siteSettings.findFirst(),
-    prisma.storyTimeline.findMany({ orderBy: { order: "asc" } }),
-    prisma.event.findMany({ orderBy: { order: "asc" } }),
-  ]);
+  // Wrap in try/catch: during Docker build the DB doesn't exist yet,
+  // so we fall back to empty defaults instead of crashing the build.
+  let settings: SiteSettings | null = null;
+  let timeline: NonNullable<StoryTimeline>[] = [];
+  let events: NonNullable<WeddingEvent>[] = [];
+
+  try {
+    [settings, timeline, events] = await Promise.all([
+      prisma.siteSettings.findFirst(),
+      prisma.storyTimeline.findMany({ orderBy: { order: "asc" } }),
+      prisma.event.findMany({ orderBy: { order: "asc" } }),
+    ]);
+  } catch {
+    // DB not available at build time — render with defaults
+  }
 
   // Safe date serialization helper
   const safeISOString = (d: unknown): string | null => {
