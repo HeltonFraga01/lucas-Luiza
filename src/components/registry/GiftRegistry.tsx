@@ -11,6 +11,13 @@ import Badge from "@/components/ui/Badge";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { toast } from "@/components/ui/Toast";
 
+interface PixData {
+  payload: string;       // PIX copia e cola
+  qrCodeBase64: string;  // data:image/png;base64,...
+  pixKey: string;
+  amount: number;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // Types
 // ═══════════════════════════════════════════════════════════════
@@ -135,20 +142,81 @@ export default function GiftRegistry() {
     return gift.isGroupGift || gift.price > 1000 || gift.isMostWanted;
   }, []);
 
-  // Open PIX flow
-  const handleContribute = useCallback((gift: GiftItem) => {
+  // PIX data state
+  const [pixData, setPixData] = useState<PixData | null>(null);
+  const [pixLoading, setPixLoading] = useState(false);
+  const [pixCopied, setPixCopied] = useState(false);
+
+  // Open PIX flow — generate real PIX payload from server
+  const handleContribute = useCallback(async (gift: GiftItem) => {
     setSelectedGift(null);
     setPixGift(gift);
+    setPixData(null);
+    setPixCopied(false);
+    const amount = gift.isGroupGift ? 0 : gift.price;
     setContribAmount(gift.isGroupGift ? "" : gift.price.toString());
+
+    if (!gift.isGroupGift && amount > 0) {
+      setPixLoading(true);
+      try {
+        const res = await fetch("/api/pix/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount,
+            giftTitle: gift.title,
+            transactionId: `G${gift.id}T${Date.now().toString(36)}`,
+          }),
+        });
+        if (res.ok) {
+          setPixData(await res.json());
+        } else {
+          const err = await res.json();
+          toast(err.error || "Erro ao gerar PIX", "error");
+        }
+      } catch {
+        toast("Erro ao gerar PIX. Tente novamente.", "error");
+      } finally {
+        setPixLoading(false);
+      }
+    }
   }, []);
 
-  // Submit contribution
+  // For group gifts, generate PIX when user sets the amount
+  const handleGenerateGroupPix = useCallback(async () => {
+    if (!pixGift || !contribAmount || parseFloat(contribAmount) <= 0) return;
+    setPixLoading(true);
+    setPixData(null);
+    setPixCopied(false);
+    try {
+      const res = await fetch("/api/pix/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(contribAmount),
+          giftTitle: pixGift.title,
+          transactionId: `G${pixGift.id}T${Date.now().toString(36)}`,
+        }),
+      });
+      if (res.ok) {
+        setPixData(await res.json());
+      } else {
+        const err = await res.json();
+        toast(err.error || "Erro ao gerar PIX", "error");
+      }
+    } catch {
+      toast("Erro ao gerar PIX. Tente novamente.", "error");
+    } finally {
+      setPixLoading(false);
+    }
+  }, [pixGift, contribAmount]);
+
+  // Submit contribution record
   const handleSubmitContribution = useCallback(async () => {
     if (!pixGift || !contribName || !contribEmail || !contribAmount) return;
     setSubmitting(true);
 
     try {
-      // Save to localStorage
       localStorage.setItem("rsvp_guest", JSON.stringify({ name: contribName, email: contribEmail }));
 
       const res = await fetch("/api/registry", {
@@ -167,8 +235,8 @@ export default function GiftRegistry() {
 
       toast("Contribuição registrada com sucesso! 🎉", "success");
       setPixGift(null);
+      setPixData(null);
 
-      // Refresh gifts
       const updated = await fetch("/api/registry");
       if (updated.ok) setGifts(await updated.json());
     } catch {
@@ -178,12 +246,13 @@ export default function GiftRegistry() {
     }
   }, [pixGift, contribName, contribEmail, contribAmount]);
 
-  const pixKey = process.env.NEXT_PUBLIC_PIX_KEY || "chave-pix@email.com";
-
-  const handleCopyPix = useCallback(() => {
-    navigator.clipboard.writeText(pixKey);
-    toast("Chave PIX copiada! 📋", "info");
-  }, [pixKey]);
+  const handleCopyPixPayload = useCallback(() => {
+    if (!pixData?.payload) return;
+    navigator.clipboard.writeText(pixData.payload);
+    setPixCopied(true);
+    toast("PIX Copia e Cola copiado! 📋", "success");
+    setTimeout(() => setPixCopied(false), 3000);
+  }, [pixData]);
 
   const resetFilters = useCallback(() => {
     setCategory("Todos");
@@ -500,21 +569,21 @@ export default function GiftRegistry() {
       {/* ═══ PIX Checkout Modal ══════════════════════════════ */}
       <Modal
         isOpen={!!pixGift}
-        onClose={() => setPixGift(null)}
+        onClose={() => { setPixGift(null); setPixData(null); }}
         title="Contribuir via PIX"
         size="md"
       >
         {pixGift && (
           <div className="flex flex-col gap-5">
             {/* Summary */}
-            <div className="bg-sky-wash rounded-lg p-4 flex items-center justify-between">
-              <div>
-                <p className="font-serif text-base text-charcoal">{pixGift.title}</p>
+            <div className="bg-sky-wash rounded-lg p-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-serif text-base text-charcoal leading-snug">{pixGift.title}</p>
                 <p className="text-xs text-stone font-sans mt-0.5">{pixGift.category}</p>
               </div>
-              {contribAmount && (
-                <span className="font-serif text-xl text-gold-leaf font-medium">
-                  R$ {parseFloat(contribAmount).toLocaleString("pt-BR")}
+              {contribAmount && parseFloat(contribAmount) > 0 && (
+                <span className="font-serif text-xl text-gold-leaf font-medium shrink-0 whitespace-nowrap">
+                  R$&nbsp;{parseFloat(contribAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </span>
               )}
             </div>
@@ -535,53 +604,110 @@ export default function GiftRegistry() {
               placeholder="seu@email.com"
             />
 
+            {/* Group gift: custom amount + generate button */}
             {pixGift.isGroupGift && (
-              <Input
-                label="Valor da contribuição"
-                type="number"
-                value={contribAmount}
-                onChange={(e) => setContribAmount(e.target.value)}
-                placeholder="Ex: 100.00"
-                hint="Digite o valor que deseja contribuir."
-              />
+              <div className="flex flex-col gap-2">
+                <Input
+                  label="Valor da contribuição"
+                  type="number"
+                  value={contribAmount}
+                  onChange={(e) => { setContribAmount(e.target.value); setPixData(null); }}
+                  placeholder="Ex: 100.00"
+                  hint="Digite o valor que deseja contribuir."
+                />
+                {parseFloat(contribAmount || "0") > 0 && !pixData && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleGenerateGroupPix}
+                    loading={pixLoading}
+                    disabled={pixLoading}
+                    className="w-full"
+                  >
+                    Gerar PIX para R$ {parseFloat(contribAmount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </Button>
+                )}
+              </div>
             )}
 
-            {/* PIX Info */}
+            {/* PIX Payment Area */}
             <div className="bg-parchment rounded-xl p-5 flex flex-col items-center gap-4 border border-dust">
-              {/* QR Code placeholder */}
-              <div className="w-40 h-40 bg-pearl rounded-lg border-2 border-dust flex items-center justify-center">
-                <div className="text-center">
-                  <span className="text-3xl block mb-1">📱</span>
-                  <span className="text-[10px] text-stone font-sans">QR Code PIX</span>
+              {pixLoading ? (
+                <div className="flex flex-col items-center gap-3 py-6">
+                  <div className="w-8 h-8 border-2 border-cornflower border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs text-stone font-sans">Gerando PIX...</p>
                 </div>
-              </div>
+              ) : pixData ? (
+                <>
+                  {/* QR Code Image */}
+                  <div className="w-52 h-52 bg-pearl rounded-xl border border-dust/60 flex items-center justify-center p-2 shadow-sm">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={pixData.qrCodeBase64}
+                      alt="QR Code PIX"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
 
-              <p className="text-xs text-stone font-sans text-center">
-                Escaneie o QR Code no app do seu banco ou copie a chave PIX abaixo:
-              </p>
+                  <div className="text-center">
+                    <p className="text-sm font-sans font-semibold text-charcoal">
+                      R$ {pixData.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-stone font-sans mt-1">
+                      Escaneie o QR Code acima no app do seu banco
+                    </p>
+                  </div>
 
-              <div className="flex w-full gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={pixKey}
-                  className="flex-1 px-3 py-2.5 text-xs font-mono text-stone bg-pearl
-                             border border-dust rounded-md truncate"
-                />
-                <button
-                  onClick={handleCopyPix}
-                  className="px-4 py-2.5 bg-cornflower text-pearl text-xs font-sans font-medium
-                             rounded-md hover:bg-cornflower-600 transition-colors cursor-pointer shrink-0"
-                >
-                  Copiar
-                </button>
-              </div>
+                  {/* Divider */}
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="flex-1 h-px bg-dust" />
+                    <span className="text-[10px] text-stone/60 font-sans uppercase tracking-wider">ou</span>
+                    <div className="flex-1 h-px bg-dust" />
+                  </div>
+
+                  {/* PIX Copia e Cola */}
+                  <div className="w-full">
+                    <label className="text-[10px] text-stone font-sans uppercase tracking-wider mb-1 block">
+                      PIX Copia e Cola
+                    </label>
+                    <div className="flex w-full gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={pixData.payload}
+                        className="flex-1 px-3 py-2.5 text-[10px] font-mono text-stone bg-pearl
+                                   border border-dust rounded-md truncate select-all"
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
+                      />
+                      <button
+                        onClick={handleCopyPixPayload}
+                        className={`px-4 py-2.5 text-xs font-sans font-medium rounded-md
+                                    transition-all cursor-pointer shrink-0
+                                    ${pixCopied
+                                      ? "bg-sage text-pearl"
+                                      : "bg-cornflower text-pearl hover:bg-cornflower-600"
+                                    }`}
+                      >
+                        {pixCopied ? "Copiado ✓" : "Copiar"}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <span className="text-4xl">💰</span>
+                  <p className="text-xs text-stone font-sans">
+                    {pixGift.isGroupGift
+                      ? "Defina o valor acima e clique em \"Gerar PIX\" para visualizar o QR Code."
+                      : "Configure a chave PIX no painel admin para gerar o pagamento."}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Actions */}
             <div className="flex gap-3">
               <button
-                onClick={() => setPixGift(null)}
+                onClick={() => { setPixGift(null); setPixData(null); }}
                 className="px-5 py-3 text-sm text-stone font-sans font-medium hover:text-cornflower transition-colors cursor-pointer"
               >
                 Cancelar
@@ -592,7 +718,7 @@ export default function GiftRegistry() {
                 className="flex-1"
                 onClick={handleSubmitContribution}
                 loading={submitting}
-                disabled={!contribName || !contribEmail || !contribAmount}
+                disabled={!contribName || !contribEmail || !contribAmount || !pixData}
               >
                 Confirmar Pagamento ✓
               </Button>

@@ -1,0 +1,44 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Next.js
+.next
+out
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Dev configs
+.env.local
+.env.development
+
+# Dev database (production uses volume)
+prisma/dev.db
+dev.db
+
+# Docs and specs
+*.md
+!README.md
+LICENSE
+
+# Gemini/AI context
+.gemini
+.agents
+_agents
+
+# Tests
+__tests__
+*.test.*
+*.spec.*

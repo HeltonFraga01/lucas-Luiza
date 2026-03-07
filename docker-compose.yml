@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  app:
+    image: heltonfraga/lucas-luiza:${APP_VERSION:-0.0.1}
+    networks:
+      - internal
+      - traefik-public
+    environment:
+      NODE_ENV: production
+      PORT: "3010"
+      HOSTNAME: "0.0.0.0"
+      APP_VERSION: ${APP_VERSION:-0.0.1}
+      DATABASE_URL: "file:/app/data/prod.db"
+      ADMIN_PASSWORD_HASH: ${ADMIN_PASSWORD_HASH}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      # SQLite persistido no host
+      - lucas_luiza_data:/app/data
+      # Uploads de imagens persistidos
+      - lucas_luiza_uploads:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3010/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      rollback_config:
+        order: stop-first
+        parallelism: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        # HTTPS router
+        - traefik.http.routers.lucas-luiza.rule=Host(`lucashenriqueluiza.com.br`) || Host(`www.lucashenriqueluiza.com.br`)
+        - traefik.http.routers.lucas-luiza.entrypoints=websecure
+        - traefik.http.routers.lucas-luiza.tls=true
+        - traefik.http.routers.lucas-luiza.tls.certresolver=letsencrypt
+        - traefik.http.services.lucas-luiza.loadbalancer.server.port=3010
+        # HTTP → HTTPS redirect
+        - traefik.http.routers.lucas-luiza-http.rule=Host(`lucashenriqueluiza.com.br`) || Host(`www.lucashenriqueluiza.com.br`)
+        - traefik.http.routers.lucas-luiza-http.entrypoints=web
+        - traefik.http.routers.lucas-luiza-http.middlewares=lucas-luiza-https-redirect
+        - traefik.http.middlewares.lucas-luiza-https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.lucas-luiza-https-redirect.redirectscheme.permanent=true
+
+volumes:
+  lucas_luiza_data:
+    driver: local
+  lucas_luiza_uploads:
+    driver: local
+
+networks:
+  internal:
+    driver: overlay
+  traefik-public:
+    external: true

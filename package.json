@@ -1,12 +1,18 @@
 {
   "name": "aeterna",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
+    "build:production": "NODE_ENV=production next build",
+    "start": "next start -p 3010",
+    "start:production": "PORT=3010 node .next/standalone/server.js",
+    "lint": "eslint",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "release": "bash release.sh"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",
@@ -21,6 +27,7 @@
     "lenis": "^1.3.18",
     "next": "16.1.6",
     "prisma": "^7.4.2",
+    "qrcode-pix": "5.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "sharp": "^0.34.5",
