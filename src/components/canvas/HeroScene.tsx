@@ -396,7 +396,7 @@ export default function HeroScene({ settings }: { settings?: HeroSettings }) {
             href="#rsvp"
             className="inline-flex items-center justify-center gap-2
                        px-8 py-3.5 min-h-12
-                       bg-cornflower text-pearl font-sans font-medium text-sm tracking-wide
+                       bg-cornflower text-white font-sans font-semibold text-sm tracking-wide
                        rounded-pill shadow-sm hover:bg-cornflower-600 hover:shadow-md
                        transition-all duration-300 active:scale-[0.98]"
           >
@@ -411,6 +411,16 @@ export default function HeroScene({ settings }: { settings?: HeroSettings }) {
                        hover:bg-ice-blue transition-all duration-300 active:scale-[0.98]"
           >
             Ver Presentes
+          </a>
+          <a
+            href="/galeria"
+            className="inline-flex items-center justify-center gap-2
+                       px-8 py-3.5 min-h-12
+                       bg-transparent text-cornflower font-sans font-medium text-sm tracking-wide
+                       border-[1.5px] border-cornflower rounded-pill
+                       hover:bg-ice-blue transition-all duration-300 active:scale-[0.98]"
+          >
+            Galeria
           </a>
         </motion.div>
       </div>

@@ -8,6 +8,7 @@ const navItems = [
   { name: "Presentes", href: "/admin/registry", icon: "🎁" },
   { name: "Momentos", href: "/admin/timeline", icon: "📖" },
   { name: "Itinerário", href: "/admin/itinerary", icon: "📋" },
+  { name: "Galeria", href: "/admin/gallery", icon: "📷" },
   { name: "Configurações", href: "/admin/settings", icon: "⚙️" },
 ];
 

@@ -123,3 +123,17 @@ model StoryTimeline {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ─── Galeria de Fotos ─────────────────────────────────────────────────────────
+
+model GalleryPhoto {
+  id          Int      @id @default(autoincrement())
+  url         String   // Path da imagem otimizada
+  caption     String?  // Legenda opcional
+  category    String   @default("geral") // "geral", "pre-wedding", "noivado", etc.
+  width       Int      @default(0)
+  height      Int      @default(0)
+  order       Int      @default(0)
+  featured    Boolean  @default(false) // Destaque na galeria
+  createdAt   DateTime @default(now())
+}
