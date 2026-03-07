@@ -46,24 +46,36 @@ export default async function Home() {
     prisma.event.findMany({ orderBy: { order: "asc" } }),
   ]);
 
+  // Safe date serialization helper
+  const safeISOString = (d: unknown): string | null => {
+    if (!d) return null;
+    try {
+      const date = d instanceof Date ? d : new Date(String(d));
+      if (isNaN(date.getTime())) return null;
+      return date.toISOString();
+    } catch {
+      return null;
+    }
+  };
+
   // Transform dates to ISO strings (avoid Next.js serialization issues)
   const plainSettings = settings
     ? {
         ...settings,
-        weddingDate: settings.weddingDate?.toISOString() || null,
-        updatedAt: settings.updatedAt?.toISOString() || null,
+        weddingDate: safeISOString(settings.weddingDate),
+        updatedAt: safeISOString(settings.updatedAt),
       }
     : undefined;
 
   const plainTimeline = timeline.map((item) => ({
     ...item,
-    createdAt: item.createdAt.toISOString(),
-    updatedAt: item.updatedAt.toISOString(),
+    createdAt: safeISOString(item.createdAt) || new Date().toISOString(),
+    updatedAt: safeISOString(item.updatedAt) || new Date().toISOString(),
   }));
 
   const plainEvents = events.map((e) => ({
     ...e,
-    datetime: e.datetime.toISOString(),
+    datetime: safeISOString(e.datetime) || new Date().toISOString(),
   }));
 
   return (

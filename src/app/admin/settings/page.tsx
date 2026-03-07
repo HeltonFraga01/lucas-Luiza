@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { toast } from "@/components/ui/Toast";
+import ImageUploader from "@/components/ui/ImageUploader";
 
 interface Settings {
   heroTitle: string;
@@ -138,6 +139,121 @@ function ColorPicker({
         />
         <span className="text-xs font-mono text-stone">{value}</span>
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Hero Carousel Multi-Image Uploader
+// ═══════════════════════════════════════════════════════════════
+
+function HeroCarouselUploader({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  let images: string[] = [];
+  try {
+    images = JSON.parse(value || "[]");
+    if (!Array.isArray(images)) images = [];
+  } catch {
+    images = [];
+  }
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("preset", "hero");
+
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const updated = [...images, data.url];
+      onChange(JSON.stringify(updated));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro ao enviar";
+      toast(msg, "error");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemove = (index: number) => {
+    const updated = images.filter((_, i) => i !== index);
+    onChange(JSON.stringify(updated));
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Image grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        {images.map((url, i) => (
+          <div
+            key={`${url}-${i}`}
+            className="relative group rounded-lg overflow-hidden border border-dust aspect-video"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={url}
+              alt={`Carrossel ${i + 1}`}
+              className="w-full h-full object-cover"
+            />
+            <button
+              onClick={() => handleRemove(i)}
+              className="absolute top-1 right-1 w-6 h-6 bg-charcoal/70 text-pearl rounded-full
+                         text-xs flex items-center justify-center opacity-0 group-hover:opacity-100
+                         transition-opacity hover:bg-red-500 cursor-pointer"
+            >
+              ✕
+            </button>
+            <span className="absolute bottom-1 left-1 bg-charcoal/50 text-pearl text-[9px] px-1.5 py-0.5 rounded font-mono">
+              {i + 1}
+            </span>
+          </div>
+        ))}
+
+        {/* Add button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="rounded-lg border-2 border-dashed border-dust/60 hover:border-cornflower/60
+                     aspect-video flex flex-col items-center justify-center gap-1
+                     transition-all cursor-pointer hover:bg-ice-blue/30 disabled:opacity-50"
+        >
+          {uploading ? (
+            <div className="w-5 h-5 border-2 border-cornflower border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <span className="text-lg opacity-40">+</span>
+              <span className="text-[10px] text-stone/50 font-sans">Adicionar</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleUpload(file);
+          e.target.value = "";
+        }}
+        className="hidden"
+      />
     </div>
   );
 }
@@ -309,21 +425,27 @@ export default function SettingsPage() {
               title="Seção Hero (Topo do Site)"
               description="Imagens que aparecem no carrossel de fundo do cabeçalho."
             >
-              <Input
-                label="Imagem Principal (URL)"
+              <ImageUploader
+                label="Imagem Principal"
                 value={settings.heroImage}
-                onChange={(e) => update("heroImage", e.target.value)}
-                placeholder="/hero-bg.jpg ou URL externa"
+                onChange={(url) => update("heroImage", url)}
+                preset="hero"
+                aspectRatio="16/9"
+                hint="Imagem de fundo principal do topo. Será otimizada para 1920×1080."
               />
-              <Textarea
-                label="Imagens do Carrossel (JSON)"
-                value={settings.heroImages}
-                onChange={(v) => update("heroImages", v)}
-                placeholder='["/foto1.jpg", "/foto2.jpg"]'
-                rows={3}
-                hint='Array JSON de URLs de imagens. Ex: ["/foto1.jpg", "/foto2.jpg"]'
-                isCode
-              />
+
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-sans font-medium text-stone uppercase tracking-wider">
+                  Imagens do Carrossel
+                </label>
+                <p className="text-[10px] text-stone/50 font-sans -mt-1">
+                  Adicione várias imagens para o slideshow do hero. Cada imagem será otimizada automaticamente.
+                </p>
+                <HeroCarouselUploader
+                  value={settings.heroImages}
+                  onChange={(v) => update("heroImages", v)}
+                />
+              </div>
             </SectionCard>
 
             <SectionCard
@@ -338,11 +460,13 @@ export default function SettingsPage() {
                 placeholder="Conte a história do casal..."
                 rows={5}
               />
-              <Input
-                label="Foto da história (URL)"
+              <ImageUploader
+                label="Foto da História"
                 value={settings.storyImage}
-                onChange={(e) => update("storyImage", e.target.value)}
-                placeholder="/story.jpg"
+                onChange={(url) => update("storyImage", url)}
+                preset="story"
+                aspectRatio="4/3"
+                hint="Imagem da seção 'Nossa História'. Será otimizada para 800×600."
               />
             </SectionCard>
 

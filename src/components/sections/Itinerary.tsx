@@ -25,40 +25,6 @@ interface ItineraryProps {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Default events (fallback)
-// ═══════════════════════════════════════════════════════════════
-
-const defaultEvents: EventData[] = [
-  {
-    id: 1,
-    title: "Cerimônia",
-    description: "O momento em que diremos sim, diante de Deus e das pessoas que mais amamos.",
-    location: "Igreja — endereço a confirmar",
-    datetime: "2026-05-16T16:00:00",
-    isVipOnly: false,
-    order: 1,
-  },
-  {
-    id: 2,
-    title: "Coquetel de Boas-Vindas",
-    description: "Recepção com drinks, canapés e muita alegria. O momento perfeito para reencontros.",
-    location: "Salão de Festas — endereço a confirmar",
-    datetime: "2026-05-16T17:30:00",
-    isVipOnly: false,
-    order: 2,
-  },
-  {
-    id: 3,
-    title: "Festa",
-    description: "Jantar, música ao vivo, pista de dança e muita celebração até altas horas.",
-    location: "Salão de Festas — endereço a confirmar",
-    datetime: "2026-05-16T19:00:00",
-    isVipOnly: false,
-    order: 3,
-  },
-];
-
-// ═══════════════════════════════════════════════════════════════
 // Time formatting
 // ═══════════════════════════════════════════════════════════════
 
@@ -73,11 +39,11 @@ function formatTime(dateStr: string) {
 
 export default function Itinerary({ events, isVip = false, settings }: ItineraryProps) {
   // Filter VIP events unless user is VIP
-  const items = events.length > 0 ? events : defaultEvents;
-  const visibleEvents = items
+  const visibleEvents = events
     .filter((e) => !e.isVipOnly || isVip)
     .sort((a, b) => a.order - b.order);
 
+  // Don't render section if there are no events
   if (visibleEvents.length === 0) return null;
 
   return (
