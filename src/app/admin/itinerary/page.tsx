@@ -1,12 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import ItineraryAdminPanel from "./ItineraryAdminPanel";
 
-export default async function AdminItineraryPage() {
-  const events = await prisma.event.findMany({
-    orderBy: { datetime: "asc" }
-  });
+export const dynamic = "force-dynamic";
 
-  const settings = await prisma.siteSettings.findFirst();
+export default async function AdminItineraryPage() {
+  let events: Awaited<ReturnType<typeof prisma.event.findMany>> = [];
+  let settings: Awaited<ReturnType<typeof prisma.siteSettings.findFirst>> = null;
+
+  try {
+    [events, settings] = await Promise.all([
+      prisma.event.findMany({ orderBy: { datetime: "asc" } }),
+      prisma.siteSettings.findFirst(),
+    ]);
+  } catch {
+    // DB not available at build time
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -23,3 +31,4 @@ export default async function AdminItineraryPage() {
     </div>
   );
 }
+

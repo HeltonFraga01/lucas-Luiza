@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import RegistryAdminPanel from "./RegistryAdminPanel";
 
+export const dynamic = "force-dynamic";
+
 export default async function RegistryAdminPage() {
-  const gifts = await prisma.giftItem.findMany({
-    orderBy: { createdAt: "desc" }
-  });
+  let gifts: Awaited<ReturnType<typeof prisma.giftItem.findMany>> = [];
+
+  try {
+    gifts = await prisma.giftItem.findMany({ orderBy: { createdAt: "desc" } });
+  } catch {
+    // DB not available at build time
+  }
 
   return (
     <div className="flex flex-col gap-8">
@@ -17,3 +23,4 @@ export default async function RegistryAdminPage() {
     </div>
   );
 }
+

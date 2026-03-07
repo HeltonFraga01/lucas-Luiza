@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 // ═══════════════════════════════════════════════════════════════
 // StatCard Component
 // ═══════════════════════════════════════════════════════════════
@@ -56,36 +58,41 @@ function StatCard({
 // ═══════════════════════════════════════════════════════════════
 
 export default async function AdminDashboard() {
-  const [
-    totalGuests,
-    totalRsvps,
-    confirmedRsvps,
-    declinedRsvps,
-    totalGifts,
-    purchasedGifts,
-    totalRaisedResult,
-    recentRsvps,
-    totalEvents,
-  ] = await Promise.all([
-    prisma.guest.count(),
-    prisma.rsvp.count(),
-    prisma.rsvp.count({ where: { confirmed: true } }),
-    prisma.rsvp.count({ where: { confirmed: false } }),
-    prisma.giftItem.count(),
-    prisma.giftItem.count({ where: { isPurchased: true } }),
-    prisma.giftItem.aggregate({ _sum: { raisedAmount: true } }),
-    prisma.rsvp.findMany({
-      take: 8,
-      orderBy: { submittedAt: "desc" },
-      include: { guest: true },
-    }),
-    prisma.event.count(),
-  ]);
+  let totalGuests = 0, totalRsvps = 0, confirmedRsvps = 0, declinedRsvps = 0;
+  let totalGifts = 0, purchasedGifts = 0, totalRaised = 0, totalEvents = 0;
+  let recentRsvps: Awaited<ReturnType<typeof prisma.rsvp.findMany<{ include: { guest: true } }>>> = [];
 
-  const totalRaised = totalRaisedResult._sum.raisedAmount || 0;
+  try {
+    const [
+      _totalGuests, _totalRsvps, _confirmedRsvps, _declinedRsvps,
+      _totalGifts, _purchasedGifts, totalRaisedResult, _recentRsvps, _totalEvents,
+    ] = await Promise.all([
+      prisma.guest.count(),
+      prisma.rsvp.count(),
+      prisma.rsvp.count({ where: { confirmed: true } }),
+      prisma.rsvp.count({ where: { confirmed: false } }),
+      prisma.giftItem.count(),
+      prisma.giftItem.count({ where: { isPurchased: true } }),
+      prisma.giftItem.aggregate({ _sum: { raisedAmount: true } }),
+      prisma.rsvp.findMany({ take: 8, orderBy: { submittedAt: "desc" }, include: { guest: true } }),
+      prisma.event.count(),
+    ]);
+
+    totalGuests = _totalGuests; totalRsvps = _totalRsvps;
+    confirmedRsvps = _confirmedRsvps; declinedRsvps = _declinedRsvps;
+    totalGifts = _totalGifts; purchasedGifts = _purchasedGifts;
+    totalRaised = totalRaisedResult._sum.raisedAmount || 0;
+    recentRsvps = _recentRsvps;
+    totalEvents = _totalEvents;
+  } catch {
+    // DB not available at build time — render with zero defaults
+  }
+
   const pendingRsvps = totalGuests - totalRsvps;
   const confirmedPct = totalGuests > 0 ? ((confirmedRsvps / totalGuests) * 100).toFixed(1) : "0";
   const giftsPct = totalGifts > 0 ? ((purchasedGifts / totalGifts) * 100).toFixed(0) : "0";
+
+
 
   return (
     <div className="flex flex-col gap-8">
