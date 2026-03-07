@@ -52,8 +52,10 @@ export default function Navbar() {
         <Link
           href="/"
           onClick={(e) => {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: "smooth" });
+            if (pathname === "/") {
+              e.preventDefault();
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
           }}
           className={`text-2xl font-display italic font-light tracking-tight transition-colors duration-300 ${
             scrolled ? "text-navy-deep" : "text-pearl drop-shadow-md"

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 
 interface Photo {
   id: number;
@@ -75,15 +74,6 @@ export default function GalleryPage() {
       <header className="relative w-full pt-28 pb-16 text-center">
         <div className="absolute inset-0 bg-linear-to-b from-sky-wash via-parchment/80 to-parchment" />
         <div className="relative z-10 max-w-3xl mx-auto px-6">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-sans text-stone/60 hover:text-cornflower
-                       transition-colors mb-8 group"
-          >
-            <span className="group-hover:-translate-x-0.5 transition-transform">←</span>
-            Voltar ao Site
-          </Link>
-
           <h1 className="font-display italic text-4xl md:text-6xl text-navy-deep mb-4">
             Nossa Galeria
           </h1>

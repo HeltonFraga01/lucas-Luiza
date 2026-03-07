@@ -394,9 +394,10 @@ export default function HeroScene({ settings }: { settings?: HeroSettings }) {
         >
           <a
             href="#rsvp"
+            style={{ color: '#ffffff' }}
             className="inline-flex items-center justify-center gap-2
                        px-8 py-3.5 min-h-12
-                       bg-cornflower text-white font-sans font-semibold text-sm tracking-wide
+                       bg-cornflower font-sans font-semibold text-sm tracking-wide
                        rounded-pill shadow-sm hover:bg-cornflower-600 hover:shadow-md
                        transition-all duration-300 active:scale-[0.98]"
           >
