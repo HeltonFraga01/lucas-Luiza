@@ -41,8 +41,8 @@ export default async function AdminGalleryPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-3xl font-serif text-zinc-900 dark:text-zinc-100">Galeria</h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mt-2">
+        <h1 className="text-3xl font-serif text-charcoal">Galeria</h1>
+        <p className="text-stone mt-2">
           Gerencie as fotos da galeria pública do casal.
         </p>
       </div>

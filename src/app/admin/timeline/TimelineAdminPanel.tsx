@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Modal from "@/components/ui/Modal";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { toast } from "@/components/ui/Toast";
 
 type TimelineItem = {
   id: number;
@@ -15,6 +19,7 @@ export default function TimelineAdminPanel() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<TimelineItem | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form states
   const [year, setYear] = useState("");
@@ -25,20 +30,12 @@ export default function TimelineAdminPanel() {
   const fetchItems = async () => {
     try {
       const res = await fetch("/api/admin/timeline");
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
-      }
-    } catch (error) {
-      console.error("Error fetching timeline items:", error);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setItems(await res.json());
+    } catch { /* no-op */ }
+    finally { setLoading(false); }
   };
 
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   const handleOpenModal = (item?: TimelineItem) => {
     if (item) {
@@ -49,10 +46,7 @@ export default function TimelineAdminPanel() {
       setOrder(item.order.toString());
     } else {
       setEditingItem(null);
-      setYear("");
-      setTitle("");
-      setDescription("");
-      setOrder("");
+      setYear(""); setTitle(""); setDescription(""); setOrder("");
     }
     setIsModalOpen(true);
   };
@@ -64,106 +58,93 @@ export default function TimelineAdminPanel() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
+    setSaving(true);
     const payload = {
       ...(editingItem && { id: editingItem.id }),
-      year,
-      title,
-      description,
+      year, title, description,
       order: parseInt(order) || 0,
     };
-
     try {
       const res = await fetch("/api/admin/timeline", {
         method: editingItem ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
-      if (res.ok) {
-        await fetchItems();
-        handleCloseModal();
-      } else {
-        alert("Erro ao salvar momento.");
-      }
-    } catch (error) {
-      console.error("Error saving timeline item:", error);
+      if (!res.ok) throw new Error();
+      await fetchItems();
+      handleCloseModal();
+      toast(editingItem ? "Momento atualizado!" : "Momento adicionado!", "success");
+    } catch {
+      toast("Erro ao salvar momento.", "error");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("Tem certeza que deseja remover este momento?")) return;
-    setLoading(true);
     try {
-      const res = await fetch(`/api/admin/timeline?id=${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        await fetchItems();
-      }
-    } catch (error) {
-      console.error("Error deleting item:", error);
-    } finally {
-      setLoading(false);
+      const res = await fetch(`/api/admin/timeline?id=${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      await fetchItems();
+      toast("Momento removido.", "success");
+    } catch {
+      toast("Erro ao remover momento.", "error");
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-zinc-200 p-6">
+    <div className="bg-pearl rounded-xl border border-dust p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl font-bold text-zinc-900">Grandes Momentos</h2>
-          <p className="text-zinc-500 text-sm">Gerencie a linha do tempo da Nossa História.</p>
+          <h2 className="font-serif text-xl text-charcoal">Grandes Momentos</h2>
+          <p className="text-stone text-xs font-sans mt-0.5">Gerencie a linha do tempo da Nossa História.</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-zinc-900 text-white px-4 py-2 rounded-lg font-medium hover:bg-zinc-800 transition-colors"
-        >
+        <Button variant="primary" onClick={() => handleOpenModal()}>
           + Adicionar Momento
-        </button>
+        </Button>
       </div>
 
       {loading && items.length === 0 ? (
-        <div className="text-center py-10 text-zinc-500">Carregando...</div>
+        <div className="text-center py-10 text-stone font-sans text-sm">Carregando...</div>
       ) : items.length === 0 ? (
-        <div className="text-center py-10 text-zinc-500 bg-zinc-50 rounded-lg border border-dashed border-zinc-200">
+        <div className="text-center py-10 text-stone font-sans text-sm bg-sky-wash rounded-lg border border-dashed border-dust">
           Nenhum momento cadastrado. Clique no botão acima para adicionar.
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-sm font-sans text-left border-collapse">
             <thead>
-              <tr className="border-b border-zinc-200">
-                <th className="py-3 px-4 text-sm font-semibold text-zinc-600">Ano</th>
-                <th className="py-3 px-4 text-sm font-semibold text-zinc-600">Título</th>
-                <th className="py-3 px-4 text-sm font-semibold text-zinc-600">Descrição</th>
-                <th className="py-3 px-4 text-sm font-semibold text-zinc-600">Ordem</th>
-                <th className="py-3 px-4 text-sm font-semibold text-zinc-600 text-right">Ações</th>
+              <tr className="bg-sky-wash border-b border-dust">
+                <th className="py-3 px-4 text-[10px] text-stone uppercase tracking-wider font-medium">Ano</th>
+                <th className="py-3 px-4 text-[10px] text-stone uppercase tracking-wider font-medium">Título</th>
+                <th className="py-3 px-4 text-[10px] text-stone uppercase tracking-wider font-medium">Descrição</th>
+                <th className="py-3 px-4 text-[10px] text-stone uppercase tracking-wider font-medium">Ordem</th>
+                <th className="py-3 px-4 text-[10px] text-stone uppercase tracking-wider font-medium text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-                  <td className="py-3 px-4 text-sm text-zinc-900">{item.year}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-900 font-medium">{item.title}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-500 max-w-xs truncate" title={item.description}>{item.description}</td>
-                  <td className="py-3 px-4 text-sm text-zinc-500">{item.order}</td>
-                  <td className="py-3 px-4 flex justify-end gap-2">
-                    <button
-                      onClick={() => handleOpenModal(item)}
-                      className="text-blue-600 hover:underline text-sm font-medium"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="text-red-600 hover:underline text-sm font-medium"
-                    >
-                      Excluir
-                    </button>
+                <tr key={item.id} className="border-b border-dust/50 last:border-0 hover:bg-ice-blue/20 transition-colors">
+                  <td className="py-3 px-4 text-charcoal">{item.year}</td>
+                  <td className="py-3 px-4 text-charcoal font-medium">{item.title}</td>
+                  <td className="py-3 px-4 text-stone max-w-xs truncate" title={item.description}>{item.description}</td>
+                  <td className="py-3 px-4 text-stone">{item.order}</td>
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleOpenModal(item)}
+                        className="text-cornflower hover:underline text-sm font-medium cursor-pointer"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-blush hover:underline text-sm font-medium cursor-pointer"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -172,83 +153,64 @@ export default function TimelineAdminPanel() {
         </div>
       )}
 
-      {/* Moda de Adição/Edição */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-zinc-900/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-950 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800">
-            <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
-                {editingItem ? "Editar Momento" : "Novo Momento"}
-              </h3>
-              <button onClick={handleCloseModal} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-xl font-bold">
-                ×
-              </button>
-            </div>
-            <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Ano (Ex: 2018)</label>
-                  <input
-                    type="text"
-                    required
-                    value={year}
-                    onChange={(e) => setYear(e.target.value)}
-                    className="p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md outline-none focus:ring-2 focus:ring-[#d4af37]"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Ordem (Ex: 1, 2, 3)</label>
-                  <input
-                    type="number"
-                    value={order}
-                    onChange={(e) => setOrder(e.target.value)}
-                    className="p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md outline-none focus:ring-2 focus:ring-[#d4af37]"
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Título</label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md outline-none focus:ring-2 focus:ring-[#d4af37]"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Descrição</label>
-                <textarea
-                  required
-                  rows={4}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="p-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-md outline-none focus:ring-2 focus:ring-[#d4af37] resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-4">
-                <button
-                  type="button"
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 bg-zinc-100 text-zinc-700 rounded-lg hover:bg-zinc-200 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors disabled:opacity-50"
-                >
-                  {loading ? "Salvando..." : "Salvar"}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title={editingItem ? "Editar Momento" : "Novo Momento"}
+      >
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Ano (Ex: 2018)"
+              type="text"
+              required
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              placeholder="2018"
+            />
+            <Input
+              label="Ordem (Ex: 1, 2, 3)"
+              type="number"
+              value={order}
+              onChange={(e) => setOrder(e.target.value)}
+              placeholder="1"
+            />
           </div>
-        </div>
-      )}
+          <Input
+            label="Título"
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="O Primeiro Encontro"
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-sans font-medium text-stone uppercase tracking-wider">
+              Descrição
+            </label>
+            <textarea
+              required
+              rows={4}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Conte o que aconteceu neste momento especial..."
+              className="w-full px-4 py-3 text-base font-sans text-charcoal bg-pearl border-[1.5px] border-dust hover:border-stone rounded-md placeholder:text-stone/60 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-periwinkle focus:border-periwinkle resize-none"
+            />
+          </div>
+          <div className="flex justify-end gap-3 mt-2">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="px-4 py-2.5 text-sm text-stone font-sans font-medium border border-dust rounded-pill hover:bg-dust/20 transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <Button type="submit" variant="primary" loading={saving}>
+              {editingItem ? "Salvar Alterações" : "Adicionar Momento"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

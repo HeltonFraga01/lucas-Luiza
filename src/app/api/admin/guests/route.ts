@@ -6,7 +6,7 @@ export async function GET() {
   try {
     const guests = await prisma.guest.findMany({
       include: {
-        rsvp: { select: { confirmed: true, submittedAt: true, notes: true } },
+        rsvp: { select: { confirmed: true, submittedAt: true, notes: true, plusOneName: true } },
         attendees: { select: { id: true, name: true, dietaryNeeds: true } },
       },
       orderBy: { name: "asc" },
@@ -62,6 +62,28 @@ export async function PUT(req: Request) {
   } catch (error) {
     console.error("Failed to update guest:", error);
     return NextResponse.json({ error: "Failed to update guest" }, { status: 500 });
+  }
+}
+
+// PATCH - Toggle check-in status
+export async function PATCH(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });
+
+    const { checkedIn } = await req.json();
+    const guest = await prisma.guest.update({
+      where: { id: parseInt(id) },
+      data: {
+        checkedIn: Boolean(checkedIn),
+        checkedInAt: checkedIn ? new Date() : null,
+      },
+    });
+    return NextResponse.json(guest);
+  } catch (error) {
+    console.error("Failed to update check-in:", error);
+    return NextResponse.json({ error: "Failed to update check-in" }, { status: 500 });
   }
 }
 

@@ -17,6 +17,8 @@ model Guest {
   group         String?       // Ex: "Família da Noiva", "Amigos"
   isVip         Boolean       @default(false) // Acesso a eventos restritos
   plusOneAllowed Boolean      @default(false)
+  checkedIn     Boolean       @default(false)
+  checkedInAt   DateTime?
   createdAt     DateTime      @default(now())
 
   rsvp          Rsvp?
@@ -61,6 +63,7 @@ model GiftItem {
   targetAmount  Float?        // Para financiamento coletivo
   raisedAmount  Float         @default(0)
   isPurchased   Boolean       @default(false)
+  hidden        Boolean       @default(false) // Oculto da lista pública
   createdAt     DateTime      @default(now())
 
   contributions GiftContribution[]

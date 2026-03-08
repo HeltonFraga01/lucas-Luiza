@@ -154,7 +154,10 @@ const statements = [
 
 // ── Colunas ausentes em bancos antigos ────────────────────────────────────────
 const columnMigrations = [
-  { table: 'Guest', column: 'phone', definition: 'TEXT' },
+  { table: 'Guest',    column: 'phone',       definition: 'TEXT' },
+  { table: 'Guest',    column: 'checkedIn',   definition: 'BOOLEAN NOT NULL DEFAULT false' },
+  { table: 'Guest',    column: 'checkedInAt', definition: 'DATETIME' },
+  { table: 'GiftItem', column: 'hidden',      definition: 'BOOLEAN NOT NULL DEFAULT false' },
 ];
 
 // ── Executar ──────────────────────────────────────────────────────────────────
