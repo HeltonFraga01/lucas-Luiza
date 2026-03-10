@@ -35,7 +35,7 @@ model Rsvp {
   notes         String?
   submittedAt   DateTime @default(now())
 
-  guest         Guest    @relation(fields: [guestId], references: [id])
+  guest         Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
 }
 
 // Acompanhantes (para grupos familiares)
@@ -45,7 +45,7 @@ model Attendee {
   name          String
   dietaryNeeds  String?  // Restrições alimentares
 
-  guest         Guest    @relation(fields: [guestId], references: [id])
+  guest         Guest    @relation(fields: [guestId], references: [id], onDelete: Cascade)
 }
 
 // ─── Lista de Presentes ───────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ model GiftContribution {
   paymentMethod String    // "pix", "paypal", "manual"
   confirmedAt   DateTime  @default(now())
 
-  giftItem      GiftItem  @relation(fields: [giftItemId], references: [id])
+  giftItem      GiftItem  @relation(fields: [giftItemId], references: [id], onDelete: Cascade)
 }
 
 // ─── Eventos do Itinerário ────────────────────────────────────────────────────
