@@ -533,7 +533,7 @@ export default function SettingsPage() {
                     {settings.heroSubtitle || "15 de Novembro de 2026"} · {settings.footerText || "Feito com 💙"}
                   </p>
                   <p className="text-[9px] text-stone/40 font-sans mt-2">
-                    © 2026 Aeterna — Wedding Experience
+                    © 2026 FragaCom — Wedding Experience
                   </p>
                 </div>
               </div>

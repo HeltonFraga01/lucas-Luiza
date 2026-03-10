@@ -3,12 +3,12 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const photos = await prisma.galleryPhoto.findMany({
+    const items = await prisma.accommodation.findMany({
+      where: { hidden: false },
       orderBy: [{ featured: "desc" }, { order: "asc" }, { createdAt: "desc" }],
     });
-    return NextResponse.json(photos);
-  } catch (error) {
-    console.error("Failed to list gallery:", error);
+    return NextResponse.json(items);
+  } catch {
     return NextResponse.json([], { status: 200 });
   }
 }

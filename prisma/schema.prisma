@@ -127,6 +127,24 @@ model StoryTimeline {
   updatedAt   DateTime @updatedAt
 }
 
+// ─── Onde Ficar (Hospedagens) ─────────────────────────────────────────────────
+
+model Accommodation {
+  id            Int      @id @default(autoincrement())
+  name          String
+  description   String?
+  imageUrl      String?
+  externalUrl   String?  // Link Airbnb / Booking
+  pricePerNight Float?
+  city          String?
+  category      String   @default("hotel") // "hotel", "pousada", "airbnb", "outro"
+  whatsapp      String?  // Ex: "5511999998888"
+  featured      Boolean  @default(false)
+  hidden        Boolean  @default(false)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
 // ─── Galeria de Fotos ─────────────────────────────────────────────────────────
 
 model GalleryPhoto {

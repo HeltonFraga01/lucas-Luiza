@@ -1,5 +1,5 @@
 /**
- * Motion Tokens — Aeterna Design System
+ * Motion Tokens — FragaCom Design System
  * 
  * Centralized animation configuration for Framer Motion & GSAP.
  * Reference: UX Design §2.5 Motion & Animation Tokens

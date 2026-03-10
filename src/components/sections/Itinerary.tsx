@@ -130,13 +130,20 @@ export default function Itinerary({ events, isVip = false, settings }: Itinerary
                   )}
 
                   {event.location && (
-                    <div className="flex items-center gap-2 text-xs text-stone/80 font-sans">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <a
+                      href={`https://maps.google.com/?q=${encodeURIComponent(event.location)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-xs text-stone/80 font-sans hover:text-cornflower transition-colors group"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 group-hover:stroke-cornflower transition-colors">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
                         <circle cx="12" cy="10" r="3" />
                       </svg>
-                      <span>{event.location}</span>
-                    </div>
+                      <span className="underline underline-offset-2 decoration-stone/30 group-hover:decoration-cornflower">
+                        {event.location}
+                      </span>
+                    </a>
                   )}
                 </div>
               </motion.div>

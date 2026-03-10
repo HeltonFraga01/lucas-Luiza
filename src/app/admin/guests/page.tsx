@@ -148,6 +148,14 @@ export default function GuestsPage() {
 
   const checkedCount = guests.filter((g) => g.checkedIn).length;
 
+  // Headcount real: cada convite pode trazer +1 (rsvp.plusOneName) e acompanhantes (attendees)
+  const countPeople = (list: Guest[]) =>
+    list.reduce((sum, g) => sum + 1 + (g.rsvp?.plusOneName ? 1 : 0) + g.attendees.length, 0);
+
+  const totalHeadcount    = countPeople(guests);
+  const confirmedHeadcount = countPeople(guests.filter((g) => g.rsvp?.confirmed));
+  const pendingCount       = guests.filter((g) => !g.rsvp).length;
+
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
@@ -155,7 +163,10 @@ export default function GuestsPage() {
         <div>
           <h1 className="font-serif text-2xl text-charcoal">Convidados & RSVP</h1>
           <p className="text-stone text-xs font-sans mt-0.5">
-            {guests.length} convidados · <span className="text-sage font-medium">{checkedCount} presentes</span>
+            {guests.length} convites · {totalHeadcount} pessoas
+            {" · "}<span className="text-sage font-medium">{confirmedHeadcount} confirmados</span>
+            {" · "}<span className="text-amber-600 font-medium">{pendingCount} pendentes</span>
+            {" · "}<span className="text-cornflower font-medium">{checkedCount} presentes</span>
           </p>
         </div>
         <div className="flex items-center gap-2">

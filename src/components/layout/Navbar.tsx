@@ -27,11 +27,18 @@ export default function Navbar() {
     { name: "Programação", href: "#itinerario" },
     { name: "Presença", href: "#rsvp" },
     { name: "Presentes", href: "#presentes" },
+    { name: "Onde Ficar", href: "/onde-ficar" },
   ];
 
   const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     e.preventDefault();
     setMobileMenuOpen(false);
+
+    // Se não estiver na home, navega para a home com o hash
+    if (pathname !== "/") {
+      window.location.href = "/" + href;
+      return;
+    }
 
     const targetElement = document.querySelector(href);
     if (targetElement) {
@@ -66,21 +73,36 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-8">
-          {navLinks.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              onClick={(e) => handleNavClick(e, link.href)}
-              className={`text-xs font-sans font-medium tracking-widest uppercase 
-                          transition-colors duration-300 hover:text-cornflower
-                          relative after:content-[''] after:absolute after:-bottom-1 
-                          after:left-0 after:w-0 after:h-[1.5px] after:bg-cornflower 
-                          after:transition-all after:duration-300 hover:after:w-full
-                          ${scrolled ? "text-stone" : "text-pearl/90 drop-shadow-sm"}`}
-            >
-              {link.name}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.href.startsWith("/") ? (
+              <Link
+                key={link.name}
+                href={link.href}
+                className={`text-xs font-sans font-medium tracking-widest uppercase
+                            transition-colors duration-300 hover:text-cornflower
+                            relative after:content-[''] after:absolute after:-bottom-1
+                            after:left-0 after:w-0 after:h-[1.5px] after:bg-cornflower
+                            after:transition-all after:duration-300 hover:after:w-full
+                            ${scrolled ? "text-stone" : "text-pearl/90 drop-shadow-sm"}`}
+              >
+                {link.name}
+              </Link>
+            ) : (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
+                className={`text-xs font-sans font-medium tracking-widest uppercase
+                            transition-colors duration-300 hover:text-cornflower
+                            relative after:content-[''] after:absolute after:-bottom-1
+                            after:left-0 after:w-0 after:h-[1.5px] after:bg-cornflower
+                            after:transition-all after:duration-300 hover:after:w-full
+                            ${scrolled ? "text-stone" : "text-pearl/90 drop-shadow-sm"}`}
+              >
+                {link.name}
+              </a>
+            )
+          )}
         </div>
 
         {/* Mobile Menu Toggle */}
@@ -120,19 +142,33 @@ export default function Navbar() {
         }`}
       >
         <div className="flex flex-col py-4 px-6 gap-1">
-          {navLinks.map((link) => (
-            <a
-              key={link.name}
-              href={link.href}
-              onClick={(e) => handleNavClick(e, link.href)}
-              className="text-sm font-sans font-medium text-charcoal py-3 px-2
-                         border-b border-dust/50 last:border-0
-                         hover:text-cornflower hover:bg-ice-blue/30 rounded-md
-                         transition-all duration-200"
-            >
-              {link.name}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.href.startsWith("/") ? (
+              <Link
+                key={link.name}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm font-sans font-medium text-charcoal py-3 px-2
+                           border-b border-dust/50 last:border-0
+                           hover:text-cornflower hover:bg-ice-blue/30 rounded-md
+                           transition-all duration-200"
+              >
+                {link.name}
+              </Link>
+            ) : (
+              <a
+                key={link.name}
+                href={link.href}
+                onClick={(e) => handleNavClick(e, link.href)}
+                className="text-sm font-sans font-medium text-charcoal py-3 px-2
+                           border-b border-dust/50 last:border-0
+                           hover:text-cornflower hover:bg-ice-blue/30 rounded-md
+                           transition-all duration-200"
+              >
+                {link.name}
+              </a>
+            )
+          )}
         </div>
       </div>
     </nav>

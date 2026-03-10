@@ -3,6 +3,7 @@ import OurStory from "@/components/sections/OurStory";
 import Itinerary from "@/components/sections/Itinerary";
 import RsvpWizard from "@/components/rsvp/RsvpWizard";
 import GiftRegistry from "@/components/registry/GiftRegistry";
+import MusicPlayer from "@/components/ui/MusicPlayer";
 import { prisma } from "@/lib/prisma";
 
 type SiteSettings = NonNullable<Awaited<ReturnType<typeof prisma.siteSettings.findFirst>>>;
@@ -32,7 +33,7 @@ function Footer({
           {heroSubtitle || "15 de Novembro de 2026"} · {footerText || "Feito com 💙"}
         </p>
         <p className="text-[10px] text-stone/40 font-sans mt-4">
-          © 2026 Aeterna — Wedding Experience
+          © 2026 FragaCom — Wedding Experience
         </p>
       </div>
     </footer>
@@ -102,6 +103,7 @@ export default async function Home() {
       <Itinerary events={plainEvents} settings={plainSettings} />
       <RsvpWizard />
       <GiftRegistry />
+      <MusicPlayer />
       <Footer
         heroTitle={plainSettings?.heroTitle}
         heroSubtitle={plainSettings?.heroSubtitle}

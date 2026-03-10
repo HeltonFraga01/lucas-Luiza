@@ -31,7 +31,7 @@ export default function GalleryPage() {
     fetch("/api/gallery")
       .then((r) => r.json())
       .then((data) => {
-        setPhotos(data);
+        setPhotos(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));

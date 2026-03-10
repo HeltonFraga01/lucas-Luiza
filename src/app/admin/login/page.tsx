@@ -52,7 +52,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-display italic text-3xl text-navy-deep mb-1">
-            Aeterna
+            FragaCom
           </h1>
           <p className="text-stone text-xs font-sans uppercase tracking-[0.2em]">
             Painel de Administração

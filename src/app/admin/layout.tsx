@@ -9,6 +9,7 @@ const navItems = [
   { name: "Momentos", href: "/admin/timeline", icon: "📖" },
   { name: "Itinerário", href: "/admin/itinerary", icon: "📋" },
   { name: "Galeria", href: "/admin/gallery", icon: "📷" },
+  { name: "Onde Ficar", href: "/admin/accommodations", icon: "🏨" },
   { name: "Configurações", href: "/admin/settings", icon: "⚙️" },
 ];
 
@@ -25,7 +26,7 @@ export default function AdminLayout({
           <div className="flex items-center gap-6 md:gap-8">
             {/* Logo */}
             <Link href="/admin" className="flex items-center gap-2">
-              <span className="font-display italic text-xl text-gold-leaf">Aeterna</span>
+              <span className="font-display italic text-xl text-gold-leaf">FragaCom</span>
               <span className="text-[10px] font-sans text-stone uppercase tracking-wider bg-sky-wash px-2 py-0.5 rounded-pill">
                 Admin
               </span>

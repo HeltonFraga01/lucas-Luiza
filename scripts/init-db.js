@@ -138,6 +138,23 @@ const statements = [
     "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
 
+  // Accommodation
+  `CREATE TABLE IF NOT EXISTS "Accommodation" (
+    "id"            INTEGER  NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name"          TEXT     NOT NULL,
+    "description"   TEXT,
+    "imageUrl"      TEXT,
+    "externalUrl"   TEXT,
+    "pricePerNight" REAL,
+    "city"          TEXT,
+    "category"      TEXT     NOT NULL DEFAULT 'hotel',
+    "whatsapp"      TEXT,
+    "featured"      BOOLEAN  NOT NULL DEFAULT false,
+    "hidden"        BOOLEAN  NOT NULL DEFAULT false,
+    "order"         INTEGER  NOT NULL DEFAULT 0,
+    "createdAt"     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+
   // GalleryPhoto
   `CREATE TABLE IF NOT EXISTS "GalleryPhoto" (
     "id"        INTEGER  NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -154,10 +171,12 @@ const statements = [
 
 // ── Colunas ausentes em bancos antigos ────────────────────────────────────────
 const columnMigrations = [
-  { table: 'Guest',    column: 'phone',       definition: 'TEXT' },
-  { table: 'Guest',    column: 'checkedIn',   definition: 'BOOLEAN NOT NULL DEFAULT false' },
-  { table: 'Guest',    column: 'checkedInAt', definition: 'DATETIME' },
-  { table: 'GiftItem', column: 'hidden',      definition: 'BOOLEAN NOT NULL DEFAULT false' },
+  { table: 'Guest',         column: 'phone',       definition: 'TEXT' },
+  { table: 'Guest',         column: 'checkedIn',   definition: 'BOOLEAN NOT NULL DEFAULT false' },
+  { table: 'Guest',         column: 'checkedInAt', definition: 'DATETIME' },
+  { table: 'GiftItem',      column: 'hidden',      definition: 'BOOLEAN NOT NULL DEFAULT false' },
+  { table: 'Accommodation', column: 'hidden',      definition: 'BOOLEAN NOT NULL DEFAULT false' },
+  { table: 'Accommodation', column: 'order',       definition: 'INTEGER NOT NULL DEFAULT 0' },
 ];
 
 // ── Executar ──────────────────────────────────────────────────────────────────
