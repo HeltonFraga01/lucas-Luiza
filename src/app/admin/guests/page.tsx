@@ -84,11 +84,12 @@ export default function GuestsPage() {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await fetch(`/api/admin/guests?id=${deleteId}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/guests?id=${deleteId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Falha ao remover");
       toast("Convidado removido.", "success");
       setDeleteId(null);
       fetchGuests();
-    } catch { toast("Erro ao remover.", "error"); }
+    } catch { toast("Erro ao remover convidado.", "error"); }
   };
 
   const toggleVip = async (g: Guest) => {

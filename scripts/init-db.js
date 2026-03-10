@@ -51,7 +51,7 @@ const statements = [
     "notes"       TEXT,
     "submittedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Rsvp_guestId_fkey" FOREIGN KEY ("guestId") REFERENCES "Guest"("id")
-      ON DELETE RESTRICT ON UPDATE CASCADE
+      ON DELETE CASCADE ON UPDATE CASCADE
   )`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Rsvp_guestId_key" ON "Rsvp"("guestId")`,
 
@@ -62,7 +62,7 @@ const statements = [
     "name"         TEXT    NOT NULL,
     "dietaryNeeds" TEXT,
     CONSTRAINT "Attendee_guestId_fkey" FOREIGN KEY ("guestId") REFERENCES "Guest"("id")
-      ON DELETE RESTRICT ON UPDATE CASCADE
+      ON DELETE CASCADE ON UPDATE CASCADE
   )`,
 
   // GiftItem
@@ -93,7 +93,7 @@ const statements = [
     "confirmedAt"      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "GiftContribution_giftItemId_fkey"
       FOREIGN KEY ("giftItemId") REFERENCES "GiftItem"("id")
-      ON DELETE RESTRICT ON UPDATE CASCADE
+      ON DELETE CASCADE ON UPDATE CASCADE
   )`,
 
   // Event

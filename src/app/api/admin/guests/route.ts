@@ -94,7 +94,14 @@ export async function DELETE(req: Request) {
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID obrigatório" }, { status: 400 });
 
-    await prisma.guest.delete({ where: { id: parseInt(id) } });
+    const guestId = parseInt(id);
+
+    // Deletar registros filhos explicitamente antes do guest.
+    // Necessário para bancos criados com ON DELETE RESTRICT (produção).
+    await prisma.attendee.deleteMany({ where: { guestId } });
+    await prisma.rsvp.deleteMany({ where: { guestId } });
+    await prisma.guest.delete({ where: { id: guestId } });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete guest:", error);
